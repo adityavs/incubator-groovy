@@ -186,4 +186,30 @@ class MapConstructorTransformTest extends GroovyShellTestCase {
         }
         assert message.contains("Error during @MapConstructor processing: 'excludes' property 'sirName' does not exist.")
     }
+
+    void testInternalFieldsAreIncludedIfRequested() {
+        assertScript '''
+            import groovy.transform.*
+
+            @MapConstructor(allNames = true)
+            class HasInternalProperty {
+                final String $
+            }
+
+            assert new HasInternalProperty($: "foo").$ == "foo"
+        '''
+    }
+
+    // GROOVY-8012
+    void testMapConstructorWithNoArgs() {
+        assertScript '''
+            @groovy.transform.MapConstructor
+            class Foo {
+                String bar
+            }
+
+            assert new Foo() instanceof Foo
+        '''
+    }
+
 }

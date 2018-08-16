@@ -25,8 +25,6 @@ import static org.junit.Assert.*
 
 /**
  * Unit tests for {@link MemoizedASTTransformation}.
- *
- * @author Andrey Bloschetsov
  */
 class MemoizedASTTransformationTest extends GroovyTestCase {
 
@@ -192,6 +190,47 @@ class MemoizedASTTransformationTest extends GroovyTestCase {
         assertEquals(MemoizedTestClass.privateStaticMethodWithParamsCounter, 3)
         assertEquals(MemoizedTestClass.privateStaticMethodWithParams(20, 5), 15)
         assertEquals(MemoizedTestClass.privateStaticMethodWithParamsCounter, 3)
+    }
+
+    void testMemoizedAIC_Groovy8043() {
+        assertScript '''
+            class A {}
+            assert new A() {
+                @groovy.transform.Memoized()
+                String a() {
+                    return "a"
+                }
+            }.a() == 'a'
+        '''
+    }
+
+    // GROOVY-8326
+    void testMemoizedMethodWithOverrideAnnotation() {
+        assertScript '''
+            class A {            
+                @groovy.transform.Memoized
+                @Override
+                String toString() {
+                    'an expensive toString operation'
+                }
+            }
+            assert new A().toString() == 'an expensive toString operation'
+        '''
+    }
+
+    // GROOVY-8367
+    void testMemoizedInInnerClass() {
+        assertScript '''
+            import groovy.transform.Memoized
+            class Outer {
+                private static int count = 0
+                private static class Inner {
+                    @Memoized
+                    static calc(int arg1, int arg2) { count++; arg1 + arg2 }
+                }
+            }
+            assert Outer.Inner.calc(3, 4) + Outer.Inner.calc(3, 4) + Outer.count == 15
+        '''
     }
 }
 

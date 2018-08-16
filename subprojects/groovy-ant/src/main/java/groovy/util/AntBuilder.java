@@ -19,7 +19,18 @@
 package groovy.util;
 
 import groovy.xml.QName;
-import org.apache.tools.ant.*;
+import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.BuildLogger;
+import org.apache.tools.ant.DemuxInputStream;
+import org.apache.tools.ant.DemuxOutputStream;
+import org.apache.tools.ant.Location;
+import org.apache.tools.ant.NoBannerLogger;
+import org.apache.tools.ant.Project;
+import org.apache.tools.ant.ProjectHelper;
+import org.apache.tools.ant.RuntimeConfigurable;
+import org.apache.tools.ant.Target;
+import org.apache.tools.ant.Task;
+import org.apache.tools.ant.UnknownElement;
 import org.apache.tools.ant.dispatch.DispatchUtils;
 import org.apache.tools.ant.helper.AntXMLContext;
 import org.apache.tools.ant.helper.ProjectHelper2;
@@ -59,7 +70,7 @@ import java.util.logging.Logger;
 public class AntBuilder extends BuilderSupport {
 
     private final Logger log = Logger.getLogger(getClass().getName());
-    private Project project;
+    private final Project project;
     private final AntXMLContext antXmlContext;
     private final ProjectHelper2.ElementHandler antElementHandler = new ProjectHelper2.ElementHandler();
     private final ProjectHelper2.TargetHandler antTargetHandler = new ProjectHelper2.TargetHandler();

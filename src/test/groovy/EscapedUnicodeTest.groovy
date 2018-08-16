@@ -16,6 +16,13 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+package groovy
+
+class EscapedUnicodeTest extends GroovyTestCase {
+    void testNothing() {}
+}
+
+/*
 \u0063\u006c\u0061\u0073\u0073\u0020\u0045\u0073\u0063\u0061\u0070\u0065\u0064\u0055\u006e\u0069\u0063\u006f\u0064\u0065\u0054\u0065\u0073\u0074\u0020\u0065\u0078\u0074\u0065\u006e\u0064\u0073\u0020\u0047\u0072\u006f\u006f\u0076\u0079\u0054\u0065\u0073\u0074\u0043\u0061\u0073\u0065\u0020\u007b
 
 \u0020\u0020\u0020\u0020\u0076\u006f\u0069\u0064\u0020\u0074\u0065\u0073\u0074\u0041\u0073\u0073\u0065\u0072\u0074\u0028\u0029\u0020\u007b
@@ -42,3 +49,33 @@
 \u0020\u0020\u0020\u0020\u007d
 \u0009\u0020\u0020\u0020\u0020
 \u007d
+*/
+
+/*
+class EscapedUnicodeTest extends GroovyTestCase {
+
+    void testAssert() {
+        def x = "abc"
+
+        assert x != "foo"
+        assert x !=  null
+        assert x != "def"
+        assert x == "abc"
+
+        assert x.equals("abc")
+	}
+
+    void testUnknownVariable() {
+        try {
+	        def y = this.x
+	        fail("x is undefined, should throw an exception")
+        }
+        catch (MissingPropertyException e) {
+			assert e.getProperty() == "x"
+            def text = e.message
+            assert text == "No such property: x for class: EscapedUnicodeTest"
+        }
+    }
+
+}
+ */

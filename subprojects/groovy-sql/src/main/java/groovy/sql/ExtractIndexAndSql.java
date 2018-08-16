@@ -185,7 +185,7 @@ class ExtractIndexAndSql {
         return ((index + 1) < sql.length()) ? sql.charAt(index + 1) : '\0';
     }
 
-    private String adaptForNamedParams(String sql, List<Tuple> indexPropList) {
+    private static String adaptForNamedParams(String sql, List<Tuple> indexPropList) {
         StringBuilder newSql = new StringBuilder();
         int txtIndex = 0;
 
@@ -194,10 +194,10 @@ class ExtractIndexAndSql {
             newSql.append(sql.substring(txtIndex, matcher.start())).append('?');
             String indexStr = matcher.group(1);
             if (indexStr == null) indexStr = matcher.group(3);
-            int index = (indexStr == null || indexStr.length() == 0 || ":".equals(indexStr)) ? 0 : new Integer(indexStr) - 1;
+            int index = (indexStr == null || indexStr.length() == 0 || ":".equals(indexStr)) ? 0 : Integer.parseInt(indexStr) - 1;
             String prop = matcher.group(2);
             if (prop == null) prop = matcher.group(4);
-            indexPropList.add(new Tuple(new Object[]{index, prop == null || prop.length() == 0 ? "<this>" : prop}));
+            indexPropList.add(new Tuple(index, prop == null || prop.length() == 0 ? "<this>" : prop));
             txtIndex = matcher.end();
         }
         newSql.append(sql.substring(txtIndex)); // append ending SQL after last param.

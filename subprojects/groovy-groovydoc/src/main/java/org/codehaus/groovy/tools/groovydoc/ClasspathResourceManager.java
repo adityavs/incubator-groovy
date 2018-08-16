@@ -18,10 +18,11 @@
  */
 package org.codehaus.groovy.tools.groovydoc;
 
+import org.codehaus.groovy.runtime.IOGroovyMethods;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import org.codehaus.groovy.runtime.IOGroovyMethods;
 
 public class ClasspathResourceManager implements ResourceManager {
     ClassLoader classLoader;
@@ -33,7 +34,7 @@ public class ClasspathResourceManager implements ResourceManager {
         this.classLoader = classLoader;
     }
 
-    public InputStream getInputStream(String resourceName) throws IOException {
+    public InputStream getInputStream(String resourceName) {
         return classLoader.getResourceAsStream(resourceName);
     }
 

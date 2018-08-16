@@ -19,28 +19,10 @@
 package groovy.util;
 
 import groovy.util.slurpersupport.GPathResult;
+import groovy.util.slurpersupport.NamespaceAwareHashMap;
 import groovy.util.slurpersupport.Node;
 import groovy.util.slurpersupport.NodeChild;
-import groovy.util.slurpersupport.NamespaceAwareHashMap;
 import groovy.xml.FactorySupport;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.io.StringReader;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.Stack;
-
-import javax.xml.XMLConstants;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
-
 import groovy.xml.QName;
 import org.xml.sax.Attributes;
 import org.xml.sax.DTDHandler;
@@ -53,10 +35,25 @@ import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
+import javax.xml.XMLConstants;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringReader;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Stack;
+
 /**
  * Parse XML into a document tree that may be traversed similar to XPath
  * expressions.  For example:
- * <pre>
+ * <pre class="groovyTestCase">
  * def rootNode = new XmlSlurper().parseText(
  *    '&lt;root&gt;&lt;one a1="uno!"/&gt;&lt;two&gt;Some text!&lt;/two&gt;&lt;/root&gt;' )
  *
@@ -68,7 +65,7 @@ import org.xml.sax.helpers.DefaultHandler;
  * <p>
  * Note that in some cases, a 'selector' expression may not resolve to a
  * single node.  For example:
- * <pre>
+ * <pre class="groovyTestCase">
  * def rootNode = new XmlSlurper().parseText(
  *    '''&lt;root&gt;
  *         &lt;a&gt;one!&lt;/a&gt;
@@ -86,13 +83,13 @@ public class XmlSlurper extends DefaultHandler {
     private final XMLReader reader;
     private Node currentNode = null;
     private final Stack<Node> stack = new Stack<Node>();
-    private final StringBuffer charBuffer = new StringBuffer();
-    private final Map<String, String> namespaceTagHints = new Hashtable<String, String>();
+    private final StringBuilder charBuffer = new StringBuilder();
+    private final Map<String, String> namespaceTagHints = new HashMap<String, String>();
     private boolean keepIgnorableWhitespace = false;
     private boolean namespaceAware = false;
 
     /**
-     * Creates a non-validating and non-namespace-aware <code>XmlSlurper</code> which does not allow DOCTYPE declarations in documents.
+     * Creates a non-validating and namespace-aware <code>XmlSlurper</code> which does not allow DOCTYPE declarations in documents.
      *
      * @throws ParserConfigurationException if no parser which satisfies the requested configuration can be created.
      * @throws SAXException for SAX errors.
@@ -142,7 +139,7 @@ public class XmlSlurper extends DefaultHandler {
         this(parser.getXMLReader());
     }
     
-    private void setQuietly(SAXParserFactory factory, String feature, boolean value) {
+    private static void setQuietly(SAXParserFactory factory, String feature, boolean value) {
         try {
             factory.setFeature(feature, value);
         }

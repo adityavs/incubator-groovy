@@ -18,13 +18,13 @@
  */
 package org.codehaus.groovy.ant;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.Task;
 import org.apache.tools.ant.types.FileSet;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /** 
  * <p><code>FileScanner</code> is a bean which allows the iteration
@@ -36,7 +36,7 @@ import org.apache.tools.ant.types.FileSet;
 public class FileScanner extends Task {
 
     /** FileSets */
-    private List filesets = new ArrayList();
+    private final List filesets = new ArrayList();
 
     public FileScanner() {
     }
@@ -54,7 +54,7 @@ public class FileScanner extends Task {
     }
 
     public boolean hasFiles() {
-        return filesets.size() > 0;
+        return !filesets.isEmpty();
     }
 
     /**

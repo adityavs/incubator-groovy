@@ -20,13 +20,13 @@ package org.codehaus.groovy.tools.shell.commands
 
 import groovy.inspect.swingui.ObjectBrowser
 import jline.console.completer.Completer
-import org.codehaus.groovy.tools.shell.Groovysh
-
-import java.awt.HeadlessException
-import javax.swing.UIManager
-
 import org.codehaus.groovy.tools.shell.CommandSupport
+import org.codehaus.groovy.tools.shell.Groovysh
 import org.codehaus.groovy.tools.shell.util.SimpleCompletor
+
+import javax.swing.*
+import java.awt.*
+import java.util.List
 
 /**
  * The 'inspect' command.
@@ -72,7 +72,7 @@ class InspectCommand
         }
 
         if (!subject) {
-            io.out.println('Subject is null; nothing to inspect') // TODO: i18n
+            io.out.println('Subject is null, false or empty; nothing to inspect') // TODO: i18n
         } else {
             // Only set LAF once.
             if (!lafInitialized) {
@@ -116,7 +116,7 @@ class InspectCommandCompletor
 
     InspectCommandCompletor(final Binding binding) {
         assert binding
-
+        this.setWithBlank(false)
         this.binding = binding
     }
 

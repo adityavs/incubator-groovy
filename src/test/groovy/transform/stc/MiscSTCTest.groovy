@@ -22,8 +22,6 @@ import org.codehaus.groovy.transform.stc.StaticTypeCheckingVisitor
 
 /**
  * Unit tests for static type checking : miscellaneous tests.
- *
- * @author Cedric Champeau
  */
 class MiscSTCTest extends StaticTypeCheckingTestCase {
 
@@ -272,8 +270,162 @@ class MiscSTCTest extends StaticTypeCheckingTestCase {
         }
     }
 
-    public static class MiscSTCTestSupport {
+    static class MiscSTCTestSupport {
         static def foo() { '123' }
     }
-}
 
+    void testTernaryParam() {
+        assertScript '''
+            Date ternaryParam(Object input) {
+                input instanceof Date ? input : null
+            }
+            def d = new Date()
+            assert ternaryParam(42) == null
+            assert ternaryParam('foo') == null
+            assert ternaryParam(d) == d
+        '''
+    }
+
+    void testTernaryLocalVar() {
+        assertScript '''
+            Date ternaryLocalVar(Object input) {
+                Object copy = input
+                copy instanceof Date ? copy : null
+            }
+            def d = new Date()
+            assert ternaryLocalVar(42) == null
+            assert ternaryLocalVar('foo') == null
+            assert ternaryLocalVar(d) == d
+        '''
+    }
+
+    void testIfThenElseParam() {
+        assertScript '''
+            Date ifThenElseParam(Object input) {
+                if (input instanceof Date) {
+                    input
+                } else {
+                    null
+                }
+            }
+            def d = new Date()
+            assert ifThenElseParam(42) == null
+            assert ifThenElseParam('foo') == null
+            assert ifThenElseParam(d) == d
+        '''
+    }
+
+    void testIfThenElseLocalVar() {
+        assertScript '''
+            Date ifThenElseLocalVar(Object input) {
+                Date result
+                if (input instanceof Date) {
+                    result = input
+                } else {
+                    result = null
+                }
+                result
+            }
+            def d = new Date()
+            assert ifThenElseLocalVar(42) == null
+            assert ifThenElseLocalVar('foo') == null
+            assert ifThenElseLocalVar(d) == d
+        '''
+    }
+
+    void testIfThenElseLocalVar2() {
+        assertScript '''
+            class FooBase {}
+            class FooChild extends FooBase{}
+            FooChild ifThenElseLocalVar2(FooBase input) {
+                FooChild result
+                if (input instanceof FooChild) {
+                    result = input
+                } else {
+                    result = null
+                }
+                result
+            }
+            def fc = new FooChild()
+            assert ifThenElseLocalVar2(fc) == fc
+            assert ifThenElseLocalVar2(new FooBase()) == null
+        '''
+    }
+
+    // GROOVY-8325
+    void testNumericCoercion() {
+        assertScript '''
+            class Foo {
+                Long val
+                static Foo newInstance(Long val) {
+                    return new Foo(val: val)
+                }
+            }
+            class FooFactory {
+                static Foo create() {
+                    Foo.newInstance(123)
+                }
+            }
+            assert FooFactory.create().val == 123
+        '''
+    }
+
+    void testNumericCoercionWithCustomNumber() {
+        shouldFailWithMessages '''
+            class CustomNumber extends Number {
+                @Delegate Long delegate = 42L
+            }
+            class Foo {
+                Integer val
+                static Foo newInstance2(Integer val) {
+                    return new Foo(val: val)
+                }
+            }
+            class FooFactory {
+                static Foo create() {
+                    Foo.newInstance2(new CustomNumber())
+                }
+            }
+        ''', 'Cannot find matching method Foo#newInstance2(CustomNumber)'
+    }
+
+    // GROOVY-8380
+    void testBitOperatorsWithNumbers() {
+        assertScript '''
+            def method() {
+                Long wl = 2L
+                long pl = 3L
+                assert new Long(wl & 3L) == 2
+                assert new Long(pl & pl) == 3
+                assert new Long(6L & 3L) == 2
+                assert new Long(-2L & 3L) == 2
+                Integer wi = 2
+                int pi = 2
+                assert new Integer(wi & 34) == 2
+                assert new Integer(pi & pi) == 2
+                assert new Integer(6 & 3) == 2
+                assert new Integer(-2 & 3) == 2
+            }
+            method()
+        '''
+    }
+
+    // GROOVY-8384
+    void testIntdiv() {
+        assertScript '''
+            def method() {
+                assert new Long(7L.multiply(3)) == 21
+                assert new Long(7L.plus(3)) == 10
+                assert new Long(7L.leftShift(3)) == 56
+                assert new Long(7L.rightShift(1)) == 3
+                assert new Long(7L.mod(3)) == 1
+                assert new Long(7L.intdiv(3)) == 2
+                assert new Integer((-8).intdiv(-4)) == 2
+                Integer x = 9
+                Integer y = 5
+                assert new Integer(x.intdiv(y)) == 1
+            }
+            method()
+        '''
+    }
+}

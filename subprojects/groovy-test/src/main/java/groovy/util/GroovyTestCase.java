@@ -203,7 +203,6 @@ public class GroovyTestCase extends TestCase {
         GroovyAssert.assertScript(script);
     }
 
-    // TODO should this be synchronised?
     protected String getTestClassName() {
         return TEST_SCRIPT_NAME_PREFIX + getMethodName() + (scriptFileNameCounter.getAndIncrement()) + ".groovy";
     }
@@ -261,7 +260,7 @@ public class GroovyTestCase extends TestCase {
      * Convenience method for subclasses of GroovyTestCase, identical to
      * <pre> GroovyTestCase.notYetImplemented(this); </pre>.
      *
-     * @return <false> when not itself already in the call stack
+     * @return <code>false</code> when not itself already in the call stack
      * @see #notYetImplemented(java.lang.Object)
      */
     public boolean notYetImplemented() {

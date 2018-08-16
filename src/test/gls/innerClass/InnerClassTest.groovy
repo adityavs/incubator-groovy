@@ -271,7 +271,7 @@ class InnerClassTest extends CompilableTestSupport {
         '''
     }
 
-    void testUsageOfOuterFieldOverriden_FAILS() {
+    void testUsageOfOuterFieldOverridden_FAILS() {
         if (notYetImplemented()) return
 
         assertScript """
@@ -340,7 +340,7 @@ class InnerClassTest extends CompilableTestSupport {
         """
     }
 
-    void testUsageOfOuterMethodOverriden() {
+    void testUsageOfOuterMethodoverridden() {
         assertScript """
             interface Run {
                 def run()
@@ -672,6 +672,59 @@ import org.codehaus.groovy.classgen.Verifier
                 }
             }
             assert new Outer().test() == 1
+        '''
+    }
+
+    void testNestedPropertyHandling() {
+        // GROOVY-6831
+        assertScript '''
+            class Outer {
+                private static List items = []
+                void add() { items.add('Outer') }
+                static class Nested {
+                    void add() { items.add('Nested') }
+                    static class NestedNested {
+                        void add() { items.add('NestedNested') }
+                        void set() { items = ['Overridden'] }
+                    }
+                }
+            }
+            new Outer().add()
+            new Outer.Nested().add()
+            new Outer.Nested.NestedNested().add()
+            assert Outer.items == ["Outer", "Nested", "NestedNested"]
+            new Outer.Nested.NestedNested().set()
+            assert Outer.items == ["Overridden"]
+        '''
+    }
+
+    void testInnerClassOfInterfaceIsStatic() {
+        //GROOVY-7312
+        assertScript '''
+            import java.lang.reflect.Modifier
+            interface Baz {
+                class Pls {}
+            }
+
+            assert Modifier.isStatic(Baz.Pls.modifiers)
+        '''
+    }
+
+    void testInnerClassOfInterfaceIsStaticVariant() {
+        //GROOVY-7312
+        assertScript '''
+            import java.lang.reflect.Modifier
+            import groovy.transform.ASTTest
+            import org.codehaus.groovy.control.CompilePhase
+            import org.objectweb.asm.Opcodes
+
+            @ASTTest(phase = CLASS_GENERATION, value = {
+                assert node.innerClasses.every { it.modifiers & Opcodes.ACC_STATIC }
+            })
+            interface Baz {
+                def foo = { "bar" }
+            }
+            null
         '''
     }
 }

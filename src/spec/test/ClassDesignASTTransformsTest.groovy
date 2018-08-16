@@ -83,6 +83,33 @@ d.bar() // fails because of @Deprecated
 '''
 
         assertScript '''
+// tag::delegate_method[]
+class Test {
+    private int robinCount = 0
+    private List<List> items = [[0], [1], [2]]
+
+    @Delegate
+    List getRoundRobinList() {
+        items[robinCount++ % items.size()]
+    }
+
+    void checkItems(List<List> testValue) {
+        assert items == testValue
+    }
+}
+// end::delegate_method[]
+
+// tag::delegate_method_usage[]
+def t = new Test()
+t << 'fee'
+t << 'fi'
+t << 'fo'
+t << 'fum'
+t.checkItems([[0, 'fee', 'fum'], [1, 'fi'], [2, 'fo']])
+// end::delegate_method_usage[]
+'''
+
+        assertScript '''
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -189,14 +216,14 @@ class NumberBooleanBuilder {
     StringBuilder nums = new StringBuilder()
     @Delegate(includeTypes=[AppendFloatSelector], interfaces=false)
     StringBuilder bools = new StringBuilder()
-    String result() { "${nums.toString()} | ${bools.toString()}" }
+    String result() { "${nums.toString()} ~ ${bools.toString()}" }
 }
 def b = new NumberBooleanBuilder()
 b.append(true)
 b.append(3.14f)
 b.append(false)
 b.append(0.0f)
-assert b.result() == "truefalse | 3.140.0"
+assert b.result() == "truefalse ~ 3.140.0"
 // end::delegate_example_includeTypes_header[]
 groovy.test.GroovyAssert.shouldFail {
 // tag::delegate_example_includeTypes_footer[]
@@ -224,6 +251,19 @@ usb.append('hello')
 usb.append(true)
 assert usb.toString() == '3.5trueHELLO'
 // end::delegate_example_excludeTypes[]
+'''
+
+        assertScript '''
+// tag::delegate_example_allNames[]
+class Worker {
+    void task$() {}
+}
+class Delegating {
+    @Delegate(allNames=true) Worker worker = new Worker()
+}
+def d = new Delegating()
+d.task$() //passes
+// end::delegate_example_allNames[]
 '''
     }
 
@@ -334,7 +374,7 @@ import groovy.transform.Memoized
 // tag::memoized_long_computation[]
 long longComputation(int seed) {
     // slow computation
-    Thread.sleep(1000*seed)
+    Thread.sleep(100*seed)
     System.nanoTime()
 }
 // end::memoized_long_computation[]
@@ -352,13 +392,13 @@ import groovy.transform.Memoized
 @Memoized
 long longComputation(int seed) {
     // slow computation
-    Thread.sleep(1000*seed)
+    Thread.sleep(100*seed)
     System.nanoTime()
 }
 
-def x = longComputation(1) // returns after 1 second
+def x = longComputation(1) // returns after 100 milliseconds
 def y = longComputation(1) // returns immediatly
-def z = longComputation(2) // returns after 2 seconds
+def z = longComputation(2) // returns after 200 milliseconds
 assert x==y
 assert x!=z
 // end::memoized_long_computation_cached[]

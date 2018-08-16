@@ -18,11 +18,8 @@
  */
 package groovy.ui.view
 
-import javax.swing.JComponent
 import javax.swing.text.StyleConstants
 import javax.swing.text.StyleContext
-import org.codehaus.groovy.runtime.InvokerHelper
-
 import java.util.prefs.Preferences
 
 build(Defaults)
@@ -33,22 +30,6 @@ def fontFamily = prefs.get("fontName", "DejaVu Sans Mono")
 // change font to DejaVu Sans Mono, much clearer
 styles.regular[StyleConstants.FontFamily] = fontFamily
 styles[StyleContext.DEFAULT_STYLE][StyleConstants.FontFamily] = fontFamily
-
-// possibly change look and feel
-if (System.properties['java.version'] =~ /^1\.5/) {
-    // GTK wasn't where it needed to be in 1.5, especially with toolbars
-    // use metal instead
-    lookAndFeel('metal', boldFonts:false)
-    
-    // we also need to turn on anti-aliasing ourselves
-    key = InvokerHelper.getProperty('com.sun.java.swing.SwingUtilities2' as Class,
-        'AA_TEXT_PROPERTY_KEY')
-    addAttributeDelegate {builder, node, attributes ->
-        if (node instanceof JComponent) {
-            node.putClientProperty(key, new Boolean(true));
-        }
-    }
-}
 
 // some current distros (Ubuntu 7.10) have broken printing support :(
 // detect it and disable it

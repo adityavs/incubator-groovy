@@ -20,18 +20,17 @@ package groovy.lang;
 
 /**
  * Provides unit tests for the <code>IntRange</code> class.
- *
- * @author James Strachan
  */
 class IntRangeTest extends GroovyTestCase {
 
     void testCreateTooBigRange() {
         try {
-            new IntRange(0, Integer.MAX_VALUE);
-            fail("too large range accepted");
+            assert new IntRange(1, Integer.MAX_VALUE).size() == Integer.MAX_VALUE // biggest allowed
+            new IntRange(0, Integer.MAX_VALUE) // too big
+            fail("too large range accepted")
         }
         catch (IllegalArgumentException ignore) {
-            assertTrue("expected exception thrown", true);
+            assert ignore.message == 'A range must have no more than 2147483647 elements but attempted 2147483648 elements'
         }
     }
 
@@ -40,11 +39,11 @@ class IntRangeTest extends GroovyTestCase {
      */
     void testInvalidArgumentsToConstructor() {
         try {
-            new IntRange(2, 1, true);
-            fail("invalid range created");
+            new IntRange(2, 1, true)
+            fail("invalid range created")
         }
         catch (IllegalArgumentException ignore) {
-            assertTrue("expected exception thrown", true);
+            assertTrue("expected exception thrown", true)
         }
     }
 
@@ -59,10 +58,10 @@ class IntRangeTest extends GroovyTestCase {
      * Tests getting the to and from values as <code>int</code>s.
      */
     void testGetToFromInt() {
-        final int from = 3, to = 7;
-        final IntRange range = new IntRange(from, to);
-        assertEquals("wrong 'from'", from, range.getFromInt());
-        assertEquals("wrong 'to'", to, range.getToInt());
+        final int from = 3, to = 7
+        final IntRange range = new IntRange(from, to)
+        assertEquals("wrong 'from'", from, range.getFromInt())
+        assertEquals("wrong 'to'", to, range.getToInt())
     }
 
     void test_Step_ShouldNotOverflowForIntegerMaxValue() {
@@ -139,4 +138,15 @@ class IntRangeTest extends GroovyTestCase {
         assert bs[-1..<-7].toString() == '{0, 5}'
         assert bs[20..<-8].toString() == '{2, 3}'
     }
+
+    void testHashCode(){
+        def maxRange = new IntRange(1,Integer.MAX_VALUE)
+        def rangeWithName = [:]
+        rangeWithName.put(maxRange, "maxRange")
+        def dupRange = new IntRange(1,Integer.MAX_VALUE)
+        assertEquals(rangeWithName.get(dupRange), "maxRange")
+    }
+
+
+
 }

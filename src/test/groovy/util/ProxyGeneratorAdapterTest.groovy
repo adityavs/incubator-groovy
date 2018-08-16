@@ -29,6 +29,11 @@ class ProxyGeneratorAdapterTest extends GroovyTestCase {
         assert obj.toString() == 'HELLO'
     }
 
+    void testShouldCreateProxyWithArrayDelegate() {
+        def adapter = new ProxyGeneratorAdapter([:], Map$Entry, [Map$Entry] as Class[], null, false, String[])
+        assert adapter.proxyName() =~ /String_array\d+_groovyProxy/
+    }
+
     void testImplementSingleAbstractMethod() {
         def map = ['m': { 'HELLO' }]
         ProxyGeneratorAdapter adapter = new ProxyGeneratorAdapter(map, Foo, null, this.class.classLoader, false, null)
@@ -36,7 +41,6 @@ class ProxyGeneratorAdapterTest extends GroovyTestCase {
         assert obj instanceof GroovyObject
         assert obj instanceof Foo
         assert obj.m() == 'HELLO'
-
     }
     
     void testImplementSingleAbstractMethodReturningVoid() {
@@ -46,7 +50,6 @@ class ProxyGeneratorAdapterTest extends GroovyTestCase {
         assert obj instanceof GroovyObject
         assert obj instanceof Bar
         obj.bar()
-
     }
 
     void testImplementSingleAbstractMethodReturningVoidAndSharedVariable() {
@@ -167,6 +170,24 @@ class ProxyGeneratorAdapterTest extends GroovyTestCase {
 
             def gp=new Foo() as DoStuff
             '''
+    }
+
+    static class ClassA {}
+    static trait Trait1 { def method1() { 'Trait1 method' } }
+
+    // GROOVY-7443
+    void testTraitFromDifferentClassloader() {
+        def aWith1 = new ClassA().withTraits(Trait1)
+        assert aWith1.method1() == 'Trait1 method'
+        GroovyClassLoader gcl = new GroovyClassLoader(Thread.currentThread().contextClassLoader)
+        Class classB = gcl.parseClass('class ClassB {}')
+        Class trait2 = gcl.parseClass('trait Trait2 { def method2() { "Trait2 method" } }')
+        def bWith1 = classB.newInstance().withTraits(Trait1)
+        assert bWith1.method1() == 'Trait1 method'
+        def bWith2 = classB.newInstance().withTraits(trait2)
+        assert bWith2.method2() == 'Trait2 method'
+        def aWith2 = new ClassA().withTraits(trait2)
+        assert aWith2.method2() == 'Trait2 method'
     }
 
     void testGetTypeArgsRegisterLength() {

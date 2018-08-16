@@ -37,6 +37,7 @@ class JsonSlurperLaxTest extends JsonSlurperTest {
         shouldFail(JsonException) { parser.parseText('{a"') }
         shouldFail(JsonException) { parser.parseText("[\"a\"") }
         shouldFail(JsonException) { parser.parseText('{"a"') }
+        shouldFail(JsonException) { parser.parseText('[-]') }
     }
 
     void testObjectWithSimpleValues() {
@@ -121,4 +122,50 @@ class JsonSlurperLaxTest extends JsonSlurperTest {
         assert map["he said"] == '"fire all your guns at once baby, and explode into the night"'
         assert map.the == "end"
     }
+
+    @Override
+    void testInvalidNumbers() {
+        // should be parsed as Strings
+        assert parser.parseText('{"num": 1a}').num == '1a'
+        assert parser.parseText('{"num": -1a}').num == '-1a'
+        assert parser.parseText('[98ab9]')[0] == '98ab9'
+        assert parser.parseText('[12/25/1980]')[0] == '12/25/1980'
+        assert parser.parseText('{"num": 1980-12-25}').num == '1980-12-25'
+        assert parser.parseText('{"num": 1.2ee5}').num == '1.2ee5'
+        assert parser.parseText('{"num": 1.2EE5}').num == '1.2EE5'
+        assert parser.parseText('{"num": 1.2Ee5}').num == '1.2Ee5'
+        assert parser.parseText('{"num": 1.2e++5}').num == '1.2e++5'
+        assert parser.parseText('{"num": 1.2e--5}').num == '1.2e--5'
+        assert parser.parseText('{"num": 1.2e+-5}').num == '1.2e+-5'
+        assert parser.parseText('{"num": 1.2+e5}').num == '1.2+e5'
+        assert parser.parseText('{"num": 1.2E5+}').num == '1.2E5+'
+        assert parser.parseText('{"num": 1.2e5+}').num == '1.2e5+'
+        assert parser.parseText('{"num": 37e-5.5}').num == '37e-5.5'
+        assert parser.parseText('{"num": 6.92e}').num == '6.92e'
+        assert parser.parseText('{"num": 6.92E}').num == '6.92E'
+        assert parser.parseText('{"num": 6.92e-}').num == '6.92e-'
+        assert parser.parseText('{"num": 6.92e+}').num == '6.92e+'
+        assert parser.parseText('{"num": 6+}').num == '6+'
+        assert parser.parseText('{"num": 6-}').num == '6-'
+    }
+
+    void testGroovy7728() {
+        String jsonString = '''
+            {
+                "enterpriseDomain": "@example.com"
+                ,"enterpriseId": "123456"
+                ,"clientId": "abcdefghijklmnopqrstuvwxyz123456"
+                ,"clientSecret": "abcdefghijklmnopqrstuvwxyz123456"
+                ,"keyId": "12345678"
+                ,"keyFileName": "/etc/PrintToBox/PrintToBox_private_key.pem"
+                ,"keyPassword": "12345678901234567890"
+                // ,"appUserId": "123456789"
+
+                //  Optional parameters with defaults shown
+                // ,"baseFolderName": "PrintToBox"
+            }
+        '''
+        assert !parser.parseText(jsonString).containsKey('appUserId')
+    }
+
 }

@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -116,13 +129,16 @@ JAVA_OPTS = -Dhttp.proxyHost=yourproxy -Dhttp.proxyPort=8080
 
 If you want to see what Grape is doing set the system property
 `groovy.grape.report.downloads` to `true` (e.g. add
-`-Dgroovy.grape.report.downloads=true` to JAVA_OPTS) and Grape will
+`-Dgroovy.grape.report.downloads=true` to invocation or JAVA_OPTS) and Grape will
 print the following infos to System.error:
 
 * Starting resolve of a dependency
 * Starting download of an artifact
 * Retrying download of an artifact
 * Download size and time for downloaded artifacts
+
+To log with even more verbosity, increase the Ivy log level
+(defaults to `-1`). For example `-Divy.message.logger.level=4`.
 
 [[Grape-Detail]]
 == Detail
@@ -151,7 +167,7 @@ version).
 * `classifier` - The optional classifier to use (for example, _jdk15_)
 
 The downloaded modules will be stored according to Ivy’s standard
-mechanism with a cache root of `~/.groovy/grape`
+mechanism with a cache root of `~/.groovy/grapes`
 
 [[Grape-Usage]]
 == Usage
@@ -184,8 +200,8 @@ annotated script element).
 [[Grape-MultipleGrapeAnnotations]]
 === Multiple Grape Annotations
 
-In order to use a Grape annotation multiple times on the same node you must use the
-`@Grapes` annotation, e.g.:
+In early versions of Groovy, if you wanted to use a Grab annotation multiple times
+on the same node you had to use the `@Grapes` annotation, e.g.:
 
 [source,groovy]
 ---------------------------------------------------------------------------------
@@ -197,12 +213,22 @@ class Example {
 }
 ---------------------------------------------------------------------------------
 
-Otherwise you’ll encounter the following error:
+Otherwise you’d encounter the following error:
 
 ------------------------------------------------------
 Cannot specify duplicate annotation on the same member
 ------------------------------------------------------
 
+But in recent versions, @Grapes is purely optional.
+
+Technical notes:
+
+* Originally, Groovy stored the Grab annotations for access at runtime
+and duplicates aren't allowed in the bytecode. In current versions, @Grab has only
+SOURCE retention, so the multiple occurrences aren't an issue.
+* Future versions of Grape may support using the Grapes annotation to
+provide a level of structuring, e.g. allowing a GrabExclude or GrabResolver
+annotation to apply to only a subset of the Grab annotations.
 
 [[Grape-Methodcall]]
 === Method call
@@ -295,7 +321,7 @@ Grape added a command line executable `grape' that allows for the
 inspection and management of the local grape cache.
 
 ------------------------------------------------
-grape install <groupId> <artifactId> [<version>]
+grape install [-hv] <group> <module> [<version>] [<classifier>]
 ------------------------------------------------
 
 This installs the specified groovy module or maven artifact. If a
@@ -310,15 +336,22 @@ Lists locally installed modules (with their full maven name in the case
 of groovy modules) and versions.
 
 -------------------------------------------------
-grape resolve (<groupId> <artifactId> <version>)+
+grape resolve [-adhisv] (<groupId> <artifactId> <version>)+
 -------------------------------------------------
 
-This returns the file locations of the jars representing the artifcats
+This returns the file locations of the jars representing the artifacts
 for the specified module(s) and the respective transitive dependencies.
 You may optionally pass in -ant, -dos, or -shell to get the dependencies
 expressed in a format applicable for an ant script, windows batch file,
 or unix shell script respectively. -ivy may be passed to see the
 dependencies expressed in an ivy like format.
+
+-------------------------------------------------
+grape uninstall [-hv] <group> <module> <version>
+-------------------------------------------------
+
+This uninstalls a particular grape: it non-transitively removes the
+respective jar file from the grape cache.
 
 [[Grape-Advancedconfiguration]]
 === Advanced configuration
@@ -328,10 +361,10 @@ dependencies expressed in an ivy like format.
 
 If you need to change the directory grape uses for downloading libraries
 you can specify the grape.root system property to change the default
-(which is ~/.groovy/grape)
+(which is ~/.groovy/grapes)
 
 -------------------------------------------------
-groovy -Dgrape.root=/repo/grape yourscript.groovy
+groovy -Dgrape.root=/repo/grapes yourscript.groovy
 -------------------------------------------------
 
 [[Grape-CustomizeIvysettings]]
@@ -339,7 +372,7 @@ groovy -Dgrape.root=/repo/grape yourscript.groovy
 
 You can customize the ivy settings that Grape uses by creating a
 ~/.groovy/grapeConfig.xml file. If no such file exists,
-https://github.com/apache/incubator-groovy/blob/master/src/resources/groovy/grape/defaultGrapeConfig.xml[here]
+https://github.com/apache/groovy/blob/master/src/resources/groovy/grape/defaultGrapeConfig.xml[here]
 are the default settings used by Grape.
 
 For more information on how to customize these settings, please refer to
@@ -354,9 +387,9 @@ Using Apache Commons Collections:
 [source,groovy]
 -----------------------------------------------------------------------------
 // create and use a primitive array list
+@Grab(group='commons-primitives', module='commons-primitives', version='1.0')
 import org.apache.commons.collections.primitives.ArrayIntList
 
-@Grab(group='commons-primitives', module='commons-primitives', version='1.0')
 def createEmptyInts() { new ArrayIntList() }
 
 def ints = createEmptyInts()
@@ -393,18 +426,16 @@ Launching a Jetty server to serve Groovy templates:
 
 [source,groovy]
 --------------------------------------------------------------------------------------------------
-@Grapes([
-    @Grab(group='org.eclipse.jetty.aggregate', module='jetty-server', version='8.1.7.v20120910'),
-    @Grab(group='org.eclipse.jetty.aggregate', module='jetty-servlet', version='8.1.7.v20120910'),
-    @Grab(group='javax.servlet', module='javax.servlet-api', version='3.0.1')])
-
+@Grab('org.eclipse.jetty.aggregate:jetty-server:8.1.19.v20160209')
+@Grab('org.eclipse.jetty.aggregate:jetty-servlet:8.1.19.v20160209')
+@Grab('javax.servlet:javax.servlet-api:3.0.1')
 import org.eclipse.jetty.server.Server
-import org.eclipse.jetty.servlet.*
-import groovy.servlet.*
+import org.eclipse.jetty.servlet.ServletContextHandler
+import groovy.servlet.TemplateServlet
 
 def runServer(duration) {
     def server = new Server(8080)
-    def context = new ServletContextHandler(server, "/", ServletContextHandler.SESSIONS);
+    def context = new ServletContextHandler(server, "/", ServletContextHandler.SESSIONS)
     context.resourceBase = "."
     context.addServlet(TemplateServlet, "*.gsp")
     server.start()
@@ -416,7 +447,7 @@ runServer(10000)
 --------------------------------------------------------------------------------------------------
 
 Grape will download Jetty and its dependencies on first launch of this
-script, and cache them. We’re creating a new Jetty Server on port 8080,
+script, and cache them. We create a new Jetty Server on port 8080,
 then expose Groovy’s TemplateServlet at the root of the context — Groovy
 comes with its own powerful template engine mechanism. We start the
 server and let it run for a certain duration. Each time someone will hit

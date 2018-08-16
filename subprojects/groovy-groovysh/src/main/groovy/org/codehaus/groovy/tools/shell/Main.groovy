@@ -18,17 +18,20 @@
  */
 package org.codehaus.groovy.tools.shell
 
+import groovy.cli.picocli.CliBuilder
+import groovy.cli.picocli.OptionAccessor
 import jline.TerminalFactory
 import jline.UnixTerminal
 import jline.UnsupportedTerminal
 import jline.WindowsTerminal
 import org.codehaus.groovy.control.CompilerConfiguration
-import org.codehaus.groovy.tools.shell.util.HelpFormatter
 import org.codehaus.groovy.tools.shell.util.Logger
 import org.codehaus.groovy.tools.shell.util.MessageSource
 import org.codehaus.groovy.tools.shell.util.NoExitSecurityManager
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.AnsiConsole
+
+import static org.apache.groovy.util.SystemUtil.setSystemPropertyFrom
 
 /**
  * A Main instance has a Groovysh member representing the shell,
@@ -38,16 +41,12 @@ import org.fusesource.jansi.AnsiConsole
  * Clients may use configureAndStartGroovysh to provide the same CLI params
  * but a different Groovysh implementation (implementing getIO() and run()).
  *
- *
  * The class also has static utility methods to manipulate the
  * static ansi state using the jAnsi library.
  *
  * Main CLI entry-point for <tt>groovysh</tt>.
- *
- * @author <a href="mailto:jason@planet57.com">Jason Dillon</a>
  */
-class Main
-{
+class Main {
     final Groovysh groovysh
 
     /**
@@ -75,19 +74,19 @@ class Main
      * @param main must have a Groovysh member that has an IO member.
      */
     static void main(final String[] args) {
-        CliBuilder cli = new CliBuilder(usage: 'groovysh [options] [...]', formatter: new HelpFormatter(), stopAtNonOption: false)
         MessageSource messages = new MessageSource(Main)
+        CliBuilder cli = new CliBuilder(usage: 'groovysh [options] [...]', stopAtNonOption: false,
+                header: messages['cli.option.header'])
         cli.with {
-            classpath(messages['cli.option.classpath.description'])
-            cp(longOpt: 'classpath', messages['cli.option.cp.description'])
+            _(names: ['-cp', '-classpath', '--classpath'], messages['cli.option.classpath.description'])
             h(longOpt: 'help', messages['cli.option.help.description'])
             V(longOpt: 'version', messages['cli.option.version.description'])
             v(longOpt: 'verbose', messages['cli.option.verbose.description'])
             q(longOpt: 'quiet', messages['cli.option.quiet.description'])
             d(longOpt: 'debug', messages['cli.option.debug.description'])
-            e(longOpt: 'evaluate', args: 1, optionalArg: false, messages['cli.option.evaluate.description'])
+            e(longOpt: 'evaluate', args: 1, argName: 'CODE', optionalArg: false, messages['cli.option.evaluate.description'])
             C(longOpt: 'color', args: 1, argName: 'FLAG', optionalArg: true, messages['cli.option.color.description'])
-            D(longOpt: 'define', args: 1, argName: 'NAME=VALUE', messages['cli.option.define.description'])
+            D(longOpt: 'define', type: Map, argName: 'name=value', messages['cli.option.define.description'])
             T(longOpt: 'terminal', args: 1, argName: 'TYPE', messages['cli.option.terminal.description'])
             pa(longOpt: 'parameters', messages['cli.option.parameters.description'])
         }
@@ -133,11 +132,7 @@ class Main
         IO io = new IO()
 
         if (options.hasOption('D')) {
-            def values = options.getOptionValues('D')
-
-            values.each {
-                setSystemProperty(it as String)
-            }
+            options.Ds.each { k, v -> System.setProperty(k, v) }
         }
 
         if (options.v) {
@@ -260,22 +255,9 @@ class Main
         Ansi.setDetector(new AnsiDetector())
     }
 
-
+    @Deprecated
     static void setSystemProperty(final String nameValue) {
-        String name
-        String value
-
-        if (nameValue.indexOf('=') > 0) {
-            def tmp = nameValue.split('=', 2)
-            name = tmp[0]
-            value = tmp[1]
-        }
-        else {
-            name = nameValue
-            value = Boolean.TRUE.toString()
-        }
-
-        System.setProperty(name, value)
+        setSystemPropertyFrom(nameValue)
     }
 }
 

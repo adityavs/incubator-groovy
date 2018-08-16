@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -33,7 +46,7 @@ String toString() { return "a server" }
 String toString() { "a server" }
 ----
 
-But sometimes, this doesn't look to good when you're using a variable, and see it visually twice on two rows:
+But sometimes, this doesn't look too good when you're using a variable, and see it visually twice on two rows:
 
 [source,groovy]
 ----
@@ -52,7 +65,7 @@ But often, inside of closure, we omit it more often than not, for example. So ev
 this is by no means mandatory to not use it if you think it halters the readability of your code.
 
 A word of caution, however. When using methods which are defined with the `def` keyword instead of a specific concrete type,
-you may be surprise to see the last expression being returned sometimes. So usually prefer using a specific return type like void or a type.
+you may be surprised to see the last expression being returned sometimes. So usually prefer using a specific return type like void or a type.
 In our example above, imagine we forgot to put m2 as last statement to be returned,
 the last expression would be `m2.c = 3`, which would return... `3`, and not the map you expect.
 
@@ -196,16 +209,15 @@ list.each  { println it }
 
 Always prefer the third form, which is more natural, as an empty pair of parentheses is just useless syntactical noise!
 
-There are some cases where Groovy doesn't allow you to remove parentheses.
-As I said, top-level expressions can omit them, but for nested method calls or on the right-hand side of an assignment,
-you can't omit them there.
+In some cases parentheses are required, such as when making nested method calls or when calling a method without parameters.
 
 [source,groovy]
 ----
 def foo(n) { n }
+def bar() { 1 }
 
 println foo 1 // won't work
-def m = foo 1
+def m = bar   // won't work
 ----
 
 == Classes as first-class citizens
@@ -294,18 +306,18 @@ server.name = "Obelix"
 server.cluster = aCluster
 ----
 
-You can use named parameters with the default constructor (first the constructor is called, then the setters are called in turn):
+You can use named parameters with the default constructor (first the constructor is called, then the setters are called in the sequence in which they are specified in the map):
 
 [source,groovy]
 ----
 def server = new Server(name: "Obelix", cluster: aCluster)
 ----
 
-== Using with() for repeated operations on the same bean
+== Using `with()` and `tap()` for repeated operations on the same bean
 
 Named-parameters with the default constructor is interesting when creating new instances,
 but what if you are updating an instance that was given to you, do you have to repeat the 'server' prefix again and again?
-No, thanks to the with() method that Groovy adds on all objects of any kind:
+No, thanks to the `with()` and `tap()` methods that Groovy adds on all objects of any kind:
 
 [source,groovy]
 ----
@@ -328,6 +340,27 @@ server.with {
     stop()
 }
 ----
+
+As with any closure in Groovy, the last statement is considered the return value.  In the example above this is the result of `stop()`.  To use this as a builder, that just returns the incoming object, there is also `tap()`:
+
+[source,groovy]
+----
+def person = new Person().with {
+    name = "Ada Lovelace"
+    it // Note the explicit mention of it as the return value
+}
+----
+
+vs:
+
+[source,groovy]
+----
+def person = new Person().tap {
+    name = "Ada Lovelace"
+}
+----
+
+Note: you can also use `with(true)` instead of `tap()` and `with(false)` instead of `with()`.
 
 == Equals and `==`
 
@@ -378,7 +411,7 @@ For simple variables, or `variable.property`, you can even drop the curly braces
 throw new Exception("Unable to convert resource: $resource")
 ----
 
-You can even lazily evaluate those expressions using a closure notation with `${-> resource }`.
+You can even lazily evaluate those expressions using a closure notation with `${\-> resource }`.
 When the GString will be coerced to a String, it'll evaluate the closure and get the `toString()` representation of the return value.
 
 Example:
@@ -430,7 +463,7 @@ You can also strip the indentation appearing on the left side of the multiline s
 Also note the difference between single quotes and double quotes in Groovy: single quotes always create Java Strings,
 without interpolation of variables, whereas double quotes either create Java Strings or GStrings when interpolated variables are present.
 
-For multiline strings, you can triple the quotes: ie. triple double quotes for GStrings and triple single quotes for mere Strings.
+For multiline strings, you can triple the quotes: i.e. triple double quotes for GStrings and triple single quotes for mere Strings.
 
 If you need to write regular expression patterns, you should use the "slashy" string notation:
 
@@ -453,35 +486,7 @@ Here are some examples of those native constructs:
 
 [source,groovy]
 ----
-def list = [1, 4, 6, 9]
-
-// by default, keys are Strings, no need to quote them
-// you can wrap keys with () like [(variableStateAcronym): stateName] to insert a variable or object as a key.
-def map = [CA: 'California', MI: 'Michigan']
-
-def range = 10..20
-def pattern = ~/fo*/
-
-// equivalent to add()
-list << 5
-
-// call contains()
-assert 4 in list
-assert 5 in list
-assert 15 in range
-
-// subscript notation
-assert list[1] == 4
-
-// add a new key value pair
-map << [WA: 'Washington']
-// subscript notation
-assert map['CA'] == 'California'
-// property notation
-assert map.WA == 'Washington'
-
-// matches() strings against patterns
-assert 'foo' =~ pattern
+include::{projectdir}/src/spec/test/StyleGuideTest.groovy[tags=data_structures,indent=0]
 ----
 
 == The Groovy Development Kit
@@ -520,7 +525,7 @@ switch (x) {
     case Number:
         result = "number"
         break
-    case { it > 3 }
+    case { it > 3 }:
         result = "number > 3"
         break
     default: result = "default"
@@ -532,27 +537,32 @@ And more generally, types with an `isCase()` method can also decide whether a va
 
 == Import aliasing
 
-In Java, when using two classes of the same name but from different packages, like `java.util.List` and `java.awt.List`,
-you can import one class, but have to use a fully-qualified name for the other.
+In Java, when using two classes of the same name but from different packages, like `java.util.List`
+and `java.awt.List`, you can import one class, but have to use a fully-qualified name for the other.
 
-Also sometimes, in your code, when using often a long class name, and the code becomes a bit more verbose.
+Also sometimes, in your code, multiple usages of a long class name, can increase verbosity and
+reduce clarity of the code.
 
 To improve such situations, Groovy features import aliasing:
 
 [source,groovy]
 ----
-import java.util.List as juList
-import java.awt.List as aList
+import java.util.List as UtilList
+import java.awt.List as AwtList
+import javax.swing.WindowConstants as WC
 
-import java.awt.WindowConstants as WC
+UtilList list1 = [WC.EXIT_ON_CLOSE]
+assert list1.size() instanceof Integer
+def list2 = new AwtList()
+assert list2.size() instanceof java.awt.Dimension
 ----
 
-You can also import methods statically:
+You can also use aliasing when importing methods statically:
 
 [source,groovy]
 ----
-import static pkg.SomeClass.foo
-foo()
+import static java.lang.Math.abs as mabs
+assert mabs(-4) == 4
 ----
 
 == Groovy Truth
@@ -650,7 +660,7 @@ def result = name ?: "Unknown"
 
 == Catch any exception
 
-If you don't really care of the exception which are thrown inside your `try` block,
+If you don't really care about the type of the exception which is thrown inside your `try` block,
 you can simply catch any of them and simply omit the type of the caught exception.
 So instead of catching the exceptions like in:
 

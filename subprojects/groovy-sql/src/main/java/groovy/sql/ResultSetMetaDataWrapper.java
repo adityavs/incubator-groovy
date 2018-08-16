@@ -18,12 +18,12 @@
  */
 package groovy.sql;
 
-import java.sql.ResultSetMetaData;
-
 import groovy.lang.GroovyObjectSupport;
 import groovy.lang.MissingPropertyException;
 import groovy.lang.ReadOnlyPropertyException;
 import org.codehaus.groovy.runtime.InvokerHelper;
+
+import java.sql.ResultSetMetaData;
 
 /**
  * This class defines a wrapper for accessing a specific column in <code>ResultSetMetaData</code>.
@@ -38,14 +38,13 @@ import org.codehaus.groovy.runtime.InvokerHelper;
  * <p>
  * This wrapper is created by an iterator invoked for <code>ResultSetMetaData</code>.
  *
- * @author John Hurst
- * @see org.codehaus.groovy.runtime.SqlGroovyMethods
+ * @see org.apache.groovy.sql.extensions.SqlExtensions
  */
 public class ResultSetMetaDataWrapper extends GroovyObjectSupport {
 
     private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
-    private ResultSetMetaData target;
-    private int index;
+    private final ResultSetMetaData target;
+    private final int index;
 
     public ResultSetMetaDataWrapper(ResultSetMetaData target, int index) {
         this.target = target;

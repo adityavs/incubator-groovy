@@ -18,10 +18,6 @@
  */
 package groovy.ui.view
 
-import java.awt.MenuItem;
-
-import groovy.swing.factory.SeparatorFactory;
-
 menuBar {
     menu(text: 'File', mnemonic: 'F') {
         menuItem(newFileAction)
@@ -52,6 +48,9 @@ menuBar {
         menuItem(selectAllAction)
 	separator()
 	menuItem(commentAction)
+        menuItem(selectBlockAction)
+        separator()
+        menuItem(preferencesAction)
     }
 
     menu(text: 'View', mnemonic: 'V') {
@@ -82,14 +81,17 @@ menuBar {
         checkBoxMenuItem(threadInterruptAction, selected: controller.threadInterrupt)
         menuItem(interruptAction)
         menuItem(compileAction)
+        checkBoxMenuItem(indyAction, selected: controller.indy)
         separator()
         menuItem(addClasspathJar)
         menuItem(addClasspathDir)
+        menuItem(listClasspath)
         menuItem(clearClassloader)
         separator()
         menuItem(inspectLastAction)
         menuItem(inspectVariablesAction)
         menuItem(inspectAstAction)
+        menuItem(inspectTokensAction)
     }
 
     menu(text: 'Help', mnemonic: 'H') {

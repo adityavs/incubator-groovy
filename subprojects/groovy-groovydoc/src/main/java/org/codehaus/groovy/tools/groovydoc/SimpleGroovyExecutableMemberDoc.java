@@ -18,9 +18,13 @@
  */
 package org.codehaus.groovy.tools.groovydoc;
 
-import java.util.*;
+import org.codehaus.groovy.groovydoc.GroovyClassDoc;
+import org.codehaus.groovy.groovydoc.GroovyExecutableMemberDoc;
+import org.codehaus.groovy.groovydoc.GroovyParameter;
+import org.codehaus.groovy.groovydoc.GroovyType;
 
-import org.codehaus.groovy.groovydoc.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SimpleGroovyExecutableMemberDoc extends SimpleGroovyMemberDoc implements GroovyExecutableMemberDoc {
     List parameters;
@@ -31,7 +35,7 @@ public class SimpleGroovyExecutableMemberDoc extends SimpleGroovyMemberDoc imple
     }
 
     public GroovyParameter[] parameters() {
-        return (GroovyParameter[]) parameters.toArray(new GroovyParameter[parameters.size()]);
+        return (GroovyParameter[]) parameters.toArray(new GroovyParameter[0]);
     }
 
     public void add(GroovyParameter parameter) {

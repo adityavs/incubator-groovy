@@ -18,15 +18,7 @@
  */
 package groovy.ui.text;
 
-import java.awt.Color;
-
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
-
-import javax.swing.AbstractAction;
-import javax.swing.Action;
-import javax.swing.KeyStroke;
-
+import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultStyledDocument;
 import javax.swing.text.Element;
@@ -34,8 +26,11 @@ import javax.swing.text.JTextComponent;
 import javax.swing.text.Segment;
 import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
-import javax.swing.text.StyledDocument;
 import javax.swing.text.StyleContext;
+import javax.swing.text.StyledDocument;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 
 
 /**
@@ -57,7 +52,7 @@ public class GroovyFilter extends StructuredSyntaxDocumentFilter {
     public static final String SINGLE_QUOTES =
             "(?ms:'{3}(?!'{1,3}).*?(?:'{3}|\\z))|(?:'{1}.*?(?:'|\\z))";
 
-    public static final String SLASHY_QUOTES = "(?:/[^/*].*?/|(?ms:\\$/.*?(?:/\\$|\\z)))";
+    public static final String SLASHY_QUOTES = "(?:/[^/*].*?(?<!\\\\)/|(?ms:\\$/.*?(?:/\\$|\\z)))";
 
     public static final String DIGIT = "DIGIT";
     public static final String DECIMAL_INTEGER_LITERAL = "(?:0|[1-9](?:[_0-9]*[0-9])?)[lL]?";
@@ -126,6 +121,7 @@ public class GroovyFilter extends StructuredSyntaxDocumentFilter {
             "\\bgoto\\b",
             "\\bpackage\\b",
             "\\bdef\\b",
+            "\\bvar\\b",
             "\\bas\\b",
             "\\bin\\b",
             "\\bsynchronized\\b",
@@ -209,7 +205,7 @@ public class GroovyFilter extends StructuredSyntaxDocumentFilter {
 
         private StyledDocument doc;
         private final Segment segment = new Segment();
-        private final StringBuffer buffer = new StringBuffer();
+        private final StringBuilder buffer = new StringBuilder();
 
         public void actionPerformed(ActionEvent ae) {
             JTextComponent tComp = (JTextComponent) ae.getSource();

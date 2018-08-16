@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -35,7 +48,7 @@ The remainder of this page shows you how to:
 
 == Monitoring the JVM
 
-MBeans are not accessed directly by an application but are managed by a repository called an __MBean server__. Java 5 and above includes a special MBean server called the __platform MBean server__, which is built into the JVM. Platform MBeans are registered in this server using unique names.
+MBeans are not accessed directly by an application but are managed by a repository called an __MBean server__. Java includes a special MBean server called the __platform MBean server__, which is built into the JVM. Platform MBeans are registered in this server using unique names.
 
 You can monitor the JVM through its platform MBeans with the following code:
 
@@ -165,7 +178,7 @@ Note: if you get errors running this script, see the **Troubleshooting** section
 
 == OC4J Example
 
-Here is a script to access http://www.oracle.com/technology/products/oc4j[OC4J] and print out some information about the server, its runtime and (as an example) the configured JMS destinations:
+Here is a script to access OC4J and print out some information about the server, its runtime and (as an example) the configured JMS destinations:
 
 [source,groovy]
 ----
@@ -423,11 +436,11 @@ Once you have an instance of JmxBuilder, you are now ready to invoke any of its 
 
 === JMX Connectors
 
-Remote connectivity is a crucial part of the JMX architecture. JmxBuilder facilitates the creation of connector servers and connector clients with nimimal amount of coding.
+Remote connectivity is a crucial part of the JMX architecture. JmxBuilder facilitates the creation of connector servers and connector clients with a minimal amount of coding.
 
 ==== Connector Server
 
-JmxBuilder.connectoServer() supports the full Connector api syntax and will let you specify properties, override the URL, specify your own host, etc.
+JmxBuilder.connectorServer() supports the full Connector api syntax and will let you specify properties, override the URL, specify your own host, etc.
 
 **Syntax**
 
@@ -763,7 +776,7 @@ Using JmxBuilder, you can target methods to export for management using the meth
 include::{rootProjectDir}/subprojects/groovy-jmx/src/spec/test/JmxTest.groovy[tags=export_operations_by_signature,indent=0]
 ----
 
-In the snipet above, JmxBuilder would **select method makeRequest(String)** to be exported instead of the other version makeRequest() which takes no parameter. In this shorthand context, the signature is specified as a list of type (i.e. "String").
+In the snippet above, JmxBuilder would **select method makeRequest(String)** to be exported instead of the other version makeRequest() which takes no parameter. In this shorthand context, the signature is specified as a list of type (i.e. "String").
 
 ==== Export Operations with Explicit Descriptors
 
@@ -1029,8 +1042,6 @@ If you use an **event listener closure (see above) that accepts a parameter**, y
 
 - http://www.ddj.com/dept/java/184406481?pgno=1[Monitoring the Java Virtual Machine]
 - http://buttso.blogspot.com/2006/05/using-groovy-for-system-management.html[Using Groovy for System Management]
-- http://jmesnil.net/weblog/2007/03/23/jmx-scripts-using-jruby[JMX Scripts using JRuby - Part I]
-- http://jmesnil.net/weblog/2007/04/03/jmx-scripts-using-jruby-part-ii[JMX Scripts using JRuby - Part II]
 - https://blogs.oracle.com/sundararajan/entry/groovier_jconsole[Groovier jconsole!]
 - http://jmesnil.net/weblog/2007/05/23/jmx-scripts-with-eclipse-monkey[JMX Scripts with Eclipse Monkey]
 - http://activemq.apache.org/jmx.html[Using JMX to monitor Apache ActiveMQ]

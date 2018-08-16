@@ -18,7 +18,7 @@
  */
 package groovy.json
 
-import groovy.json.internal.Value
+import org.apache.groovy.json.internal.Value
 
 /**
  * @author Guillaume Laforge
@@ -274,7 +274,7 @@ class JsonSlurperTest extends GroovyTestCase {
         shouldFail(JsonException) { parser.parseText('["a"')        }
         shouldFail(JsonException) { parser.parseText('["a", ')      }
         shouldFail(JsonException) { parser.parseText('["a", true')  }
-        shouldFail(JsonException) { parser.parseText('[1.1.1]')     }
+        shouldFail(JsonException) { parser.parseText('[-]') }
     }
 
     void testBackSlashEscaping() {
@@ -308,4 +308,49 @@ class JsonSlurperTest extends GroovyTestCase {
         assert slurper.parse('{"a":true}'.bytes) == [a: true]
 
     }
+
+    void testJsonDate() {
+        def o = new JsonSlurper().
+            setType(JsonParserType.INDEX_OVERLAY).
+            setCheckDates(true).
+            parseText(JsonOutput.toJson([a : new Date()]))
+
+        assertEquals(Date.class, o.a.class)
+    }
+
+    void testInvalidNumbers() {
+        shouldFail(JsonException) { parser.parseText('[1.1.1]') }
+        shouldFail(JsonException) { parser.parseText('{"num": 1a}') }
+        shouldFail(JsonException) { parser.parseText('{"num": 1A}') }
+        shouldFail(JsonException) { parser.parseText('{"num": -1a}') }
+        shouldFail(JsonException) { parser.parseText('[98ab9]') }
+        shouldFail(JsonException) { parser.parseText('[-98ab9]') }
+        shouldFail(JsonException) { parser.parseText('[12/25/1980]') }
+
+        // TODO: Exception class differs from this point by parser type
+        // Probably something to be addressed at some point.
+        Class exceptional = JsonException
+        if (parser.type == JsonParserType.CHAR_BUFFER) {
+            exceptional = NumberFormatException
+        }
+
+        shouldFail(exceptional) { parser.parseText('{"num": 1980-12-25}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2ee5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2EE5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2Ee5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2e++5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2e--5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2e+-5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2+e5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2E5+}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 1.2e5+}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 37e-5.5}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 6.92e}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 6.92E}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 6.92e-}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 6.92e+}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 6+}') }
+        shouldFail(exceptional) { parser.parseText('{"num": 6-}') }
+    }
+
 }

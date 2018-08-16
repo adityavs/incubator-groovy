@@ -18,25 +18,25 @@
  */
 package org.codehaus.groovy.tools.groovydoc;
 
-import java.io.File;
-import java.util.Iterator;
-import java.util.Properties;
-
 import org.codehaus.groovy.groovydoc.GroovyClassDoc;
 import org.codehaus.groovy.groovydoc.GroovyPackageDoc;
 import org.codehaus.groovy.groovydoc.GroovyRootDoc;
 import org.codehaus.groovy.tools.shell.util.Logger;
+
+import java.io.File;
+import java.util.Iterator;
+import java.util.Properties;
 
 /**
  * Write GroovyDoc resources to destination.
  */
 public class GroovyDocWriter {
     private final Logger log = Logger.create(GroovyDocWriter.class);
-    private GroovyDocTool tool;
-    private OutputTool output;
-    private GroovyDocTemplateEngine templateEngine;
+    private final GroovyDocTool tool;
+    private final OutputTool output;
+    private final GroovyDocTemplateEngine templateEngine;
     private static final String FS = "/";
-    private Properties properties;
+    private final Properties properties;
 
     public GroovyDocWriter(GroovyDocTool tool, OutputTool output, GroovyDocTemplateEngine templateEngine, Properties properties) {
         this.tool = tool;
@@ -108,7 +108,7 @@ public class GroovyDocWriter {
         }
     }
 
-    private boolean hasBinaryExtension(String template) {
+    private static boolean hasBinaryExtension(String template) {
         return template.endsWith(".gif") || template.endsWith(".ico");
     }
 

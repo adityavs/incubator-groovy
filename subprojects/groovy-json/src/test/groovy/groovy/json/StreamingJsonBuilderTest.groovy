@@ -18,16 +18,121 @@
  */
 package groovy.json
 
+import groovy.transform.CompileStatic
+
 /**
  * @author Tim Yates
  * @author Guillaume Laforge
  */
 class StreamingJsonBuilderTest extends GroovyTestCase {
 
+    @CompileStatic
+    void testJsonBuilderUsageWithCompileStatic() {
+        new StringWriter().with { w ->
+            def json = new StreamingJsonBuilder(w)
+            json.call('response') {
+                call "status", "ok"
+                call "userTier", "free"
+                call "total", 2413
+                call "startIndex", 1
+                call "pageSize", 10
+                call "currentPage", 1
+                call "pages", 242
+                call "orderBy", "newest"
+                call("results",
+                [
+                        id: "world/video/2011/jan/19/tunisia-demonstrators-democracy-video",
+                        sectionId: "world",
+                        sectionName: "World news",
+                        webPublicationDate: "2011-01-19T15:12:46Z",
+                        webTitle: "Tunisian demonstrators demand new democracy - video",
+                        webUrl: "http://www.guardian.co.uk/world/video/2011/jan/19/tunisia-demonstrators-democracy-video",
+                        apiUrl: "http://content.guardianapis.com/world/video/2011/jan/19/tunisia-demonstrators-democracy-video"
+                ],
+                        [
+                                id: "world/gallery/2011/jan/19/tunisia-protests-pictures",
+                                sectionId: "world",
+                                sectionName: "World news",
+                                webPublicationDate: "2011-01-19T15:01:09Z",
+                                webTitle: "Tunisia protests continue in pictures ",
+                                webUrl: "http://www.guardian.co.uk/world/gallery/2011/jan/19/tunisia-protests-pictures",
+                                apiUrl: "http://content.guardianapis.com/world/gallery/2011/jan/19/tunisia-protests-pictures"
+                        ])
+            }
+
+            assert w.toString() ==
+                    '''{"response":{"status":"ok","userTier":"free","total":2413,"startIndex":1,"pageSize":10,"currentPage":1,"pages":242,"orderBy":"newest","results":[{"id":"world/video/2011/jan/19/tunisia-demonstrators-democracy-video","sectionId":"world","sectionName":"World news","webPublicationDate":"2011-01-19T15:12:46Z","webTitle":"Tunisian demonstrators demand new democracy - video","webUrl":"http://www.guardian.co.uk/world/video/2011/jan/19/tunisia-demonstrators-democracy-video","apiUrl":"http://content.guardianapis.com/world/video/2011/jan/19/tunisia-demonstrators-democracy-video"},{"id":"world/gallery/2011/jan/19/tunisia-protests-pictures","sectionId":"world","sectionName":"World news","webPublicationDate":"2011-01-19T15:01:09Z","webTitle":"Tunisia protests continue in pictures ","webUrl":"http://www.guardian.co.uk/world/gallery/2011/jan/19/tunisia-protests-pictures","apiUrl":"http://content.guardianapis.com/world/gallery/2011/jan/19/tunisia-protests-pictures"}]}}'''
+        }
+    }
+
+    void testJsonBuilderWithWritableValue() {
+        new StringWriter().with { w ->
+            def builder = new StreamingJsonBuilder(w)
+            def writable = new Writable() {
+                @Override
+                Writer writeTo(Writer writer) throws IOException {
+                    def value = "world"
+                    new StreamingJsonBuilder(writer).call {
+                        sectionId "$value"
+                        itemId "foo"
+                        assert delegate instanceof StreamingJsonBuilder.StreamingJsonDelegate
+                    }
+                    return writer
+                }
+            }
+            builder.response {
+                status "ok"
+                results writable
+            }
+
+            assert w.toString() == '{"response":{"status":"ok","results":{"sectionId":"world","itemId":"foo"}}}'
+        }
+    }
+
+    void testJsonBuilderWithNestedClosures() {
+        new StringWriter().with { w ->
+            def builder = new StreamingJsonBuilder(w)
+
+            builder.response {
+                status "ok"
+                results {
+                    sectionId "world"
+                    assert delegate instanceof StreamingJsonBuilder.StreamingJsonDelegate
+                }
+            }
+
+            assert w.toString() == '{"response":{"status":"ok","results":{"sectionId":"world"}}}'
+        }
+    }
+
     void testJsonBuilderConstructor() {
         new StringWriter().with { w ->
             new StreamingJsonBuilder(w, [a: 1, b: true])
             assert w.toString() == '{"a":1,"b":true}'
+        }
+    }
+
+    void testUnescapedJson() {
+        new StringWriter().with { w ->
+            new StreamingJsonBuilder(w).call {
+                a 1
+                b JsonOutput.unescaped('{"name":"Fred"}')
+                c 3
+            }
+            assert w.toString() == '{"a":1,"b":{"name":"Fred"},"c":3}'
+        }
+    }
+
+
+    @CompileStatic
+    void testUnescapedJsonCompileStatic() {
+        new StringWriter().with { w ->
+            new StreamingJsonBuilder(w).call {
+                call 'a', 1
+                call 'b', JsonOutput.unescaped('{"name":"Fred"}')
+                call 'c', 3
+            }
+            assert w.toString() == '{"a":1,"b":{"name":"Fred"},"c":3}'
         }
     }
 
@@ -177,6 +282,51 @@ class StreamingJsonBuilderTest extends GroovyTestCase {
             }
 
             assert w.toString() == '[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]'
+        }
+    }
+
+    void testIterableAndClosure() {
+        def authors = [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")]
+        Iterable it = [iterator:{->
+            authors.iterator()
+        }] as Iterable
+        new StringWriter().with { w ->
+            def json = new StreamingJsonBuilder(w)
+            json it, { Author author ->
+                name author.name
+            }
+
+            assert w.toString() == '[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]'
+        }
+    }
+
+    void testMethodWithIterableAndClosure() {
+        def authors = [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")]
+        Iterable it = [iterator:{->
+            authors.iterator()
+        }] as Iterable
+
+        new StringWriter().with { w ->
+            def json = new StreamingJsonBuilder(w)
+            json.authors it, { Author author ->
+                name author.name
+            }
+
+            assert w.toString() == '{"authors":[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]}'
+        }
+    }
+
+    void testMethodWithArrayAndClosure() {
+        def authors = [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")]
+
+
+        new StringWriter().with { w ->
+            def json = new StreamingJsonBuilder(w)
+            json.authors authors as Author[], { Author author ->
+                name author.name
+            }
+
+            assert w.toString() == '{"authors":[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]}'
         }
     }
 
@@ -344,6 +494,56 @@ class StreamingJsonBuilderTest extends GroovyTestCase {
             shouldFail(JsonException) {
                 builder.elem(a: 1, b: 2, "ABCD")
             }
+        }
+    }
+
+    void testWithGenerator() {
+        def generator = new JsonGenerator.Options()
+                .excludeNulls()
+                .dateFormat('yyyyMM')
+                .excludeFieldsByName('secretKey', 'creditCardNumber')
+                .excludeFieldsByType(URL)
+                .addConverter(java.util.concurrent.atomic.AtomicBoolean) { ab -> ab.get() }
+                .build()
+
+        new StringWriter().with { w ->
+            def builder = new StreamingJsonBuilder(w, generator)
+
+            builder.payload {
+                id 'YT-1234'
+                location null
+                secretKey 'J79-A25'
+                creditCardNumber '123-444-789-2233'
+                site new URL('http://groovy-lang.org')
+                isActive new java.util.concurrent.atomic.AtomicBoolean(true)
+            }
+
+            assert w.toString() == '{"payload":{"id":"YT-1234","isActive":true}}'
+        }
+    }
+
+    @CompileStatic
+    void testWithGeneratorCompileStatic() {
+        def generator = new JsonGenerator.Options()
+                .excludeNulls()
+                .dateFormat('yyyyMM')
+                .excludeFieldsByName('secretKey', 'creditCardNumber')
+                .excludeFieldsByType(URL)
+                .addConverter(java.util.concurrent.atomic.AtomicBoolean) { ab -> ab.get() }
+                .build()
+
+        new StringWriter().with { w ->
+            def builder = new StreamingJsonBuilder(w, generator)
+            builder.call('payload') {
+                call 'id', 'YT-1234'
+                call 'location', (String)null
+                call 'secretKey', 'J79-A25'
+                call 'creditCardNumber', '123-444-789-2233'
+                call 'site', new URL('http://groovy-lang.org')
+                call 'isActive', new java.util.concurrent.atomic.AtomicBoolean(true)
+            }
+
+            assert w.toString() == '{"payload":{"id":"YT-1234","isActive":true}}'
         }
     }
 }

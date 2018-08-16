@@ -415,6 +415,17 @@ class JsonOutputTest extends GroovyTestCase {
         assert toJson({'\1' 0}) == '{"\\u0001":0}'
         assert toJson({'\u0002' 0}) == '{"\\u0002":0}'
     }
+
+    void testFile() {
+        def file  = File.createTempFile('test', 'file-json')
+        file.deleteOnExit()
+        assert toJson(file)
+
+        def dir = File.createTempDir()
+        dir.deleteOnExit()
+        assert toJson(dir)
+    }
+
 }
 
 @Canonical

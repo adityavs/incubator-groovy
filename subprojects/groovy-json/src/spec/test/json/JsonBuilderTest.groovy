@@ -25,7 +25,7 @@ class JsonBuilderTest extends GroovyTestCase {
             import groovy.json.*
             @Grapes([
                 @Grab('com.google.code.gson:gson:2.3.1'), //required by json-unit
-                @Grab('net.javacrumbs.json-unit:json-unit:1.5.2')])
+                @Grab('net.javacrumbs.json-unit:json-unit:1.5.5')])
             import net.javacrumbs.jsonunit.JsonAssert
 
             // tag::json_string[]
@@ -68,5 +68,37 @@ class JsonBuilderTest extends GroovyTestCase {
             JsonAssert.assertJsonEquals(json, carRecords)
             // end::json_assert[]
        """
+    }
+
+    void testJsonBuilderWithGenerator() {
+        assertScript """
+            // tag::json_builder_generator[]
+            import groovy.json.*
+
+            def generator = new JsonGenerator.Options()
+                    .excludeNulls()
+                    .excludeFieldsByName('make', 'country', 'record')
+                    .excludeFieldsByType(Number)
+                    .addConverter(URL) { url -> "http://groovy-lang.org" }
+                    .build()
+
+            JsonBuilder builder = new JsonBuilder(generator)
+            builder.records {
+              car {
+                    name 'HSV Maloo'
+                    make 'Holden'
+                    year 2006
+                    country 'Australia'
+                    homepage new URL('http://example.org')
+                    record {
+                        type 'speed'
+                        description 'production pickup truck with speed of 271kph'
+                    }
+              }
+            }
+
+            assert builder.toString() == '{"records":{"car":{"name":"HSV Maloo","homepage":"http://groovy-lang.org"}}}'
+            // end::json_builder_generator[]
+        """
     }
 }

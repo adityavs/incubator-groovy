@@ -18,10 +18,13 @@
  */
 package org.codehaus.groovy.tools.groovydoc;
 
-import org.codehaus.groovy.groovydoc.*;
+import org.codehaus.groovy.groovydoc.GroovyClassDoc;
+import org.codehaus.groovy.groovydoc.GroovyMethodDoc;
+import org.codehaus.groovy.groovydoc.GroovyType;
 
 public class SimpleGroovyMethodDoc extends SimpleGroovyExecutableMemberDoc implements GroovyMethodDoc {
     private GroovyType returnType;
+    private String typeParameters;
 
     public SimpleGroovyMethodDoc(String name, GroovyClassDoc belongsToClass) {
         super(name, belongsToClass);
@@ -55,5 +58,13 @@ public class SimpleGroovyMethodDoc extends SimpleGroovyExecutableMemberDoc imple
 
     public boolean overrides(GroovyMethodDoc arg0) {/*todo*/
         return false;
+    }
+
+    public String typeParameters() {
+        return typeParameters;
+    }
+
+    public void setTypeParameters(String typeParameters) {
+        this.typeParameters = typeParameters;
     }
 }

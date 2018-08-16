@@ -18,18 +18,31 @@
  */
 package groovy.ui.view
 
+import org.codehaus.groovy.vmplugin.VMPluginFactory
+
 def handler = false
+def jdk9plus = VMPluginFactory.getPlugin().getVersion() > 8
+// TODO Desktop handlers are supposed to work cross platform, should we do version check at a higher layer
+// TODO there is also an open files handler, should we also be using that?
 if (!handler) {
     try {
-        handler = build("""
+        handler = build(jdk9plus ? """
+import java.awt.Desktop
+def handler = Desktop.getDesktop()
+handler.setAboutHandler(controller.&showAbout)
+handler.setQuitHandler(controller.&exitDesktop)
+handler.setPreferencesHandler(controller.&preferences)
+handler
+""" : """
 package groovy.ui
 
 import com.apple.mrj.*
 
-class ConsoleMacOsSupport implements MRJQuitHandler, MRJAboutHandler {
+class ConsoleMacOsSupport implements MRJQuitHandler, MRJAboutHandler, MRJPrefsHandler {
 
     def quitHandler
     def aboutHandler
+    def prefHandler
 
     public void handleAbout() {
         aboutHandler()
@@ -39,11 +52,16 @@ class ConsoleMacOsSupport implements MRJQuitHandler, MRJAboutHandler {
         quitHandler()
     }
 
+
+    public void handlePrefs() throws IllegalStateException {
+        prefHandler()
+    }
 }
 
-def handler = new ConsoleMacOsSupport(quitHandler:controller.&exit, aboutHandler:controller.&showAbout)
+def handler = new ConsoleMacOsSupport(quitHandler:controller.&exit, aboutHandler:controller.&showAbout, prefHandler:controller.&preferences)
 MRJApplicationUtils.registerAboutHandler(handler)
 MRJApplicationUtils.registerQuitHandler(handler)
+MRJApplicationUtils.registerPrefsHandler(handler)
 
 return handler
 """, new GroovyClassLoader(this.class.classLoader))
@@ -85,6 +103,7 @@ menuBar {
         menuItem(selectAllAction, icon:null)
 	separator()
 	menuItem(commentAction, icon:null)
+        menuItem(selectBlockAction, icon:null)
     }
 
     menu(text: 'View', mnemonic: 'V') {
@@ -118,11 +137,13 @@ menuBar {
         separator()
         menuItem(addClasspathJar)
         menuItem(addClasspathDir)
+        menuItem(listClasspath)
         menuItem(clearClassloader)
         separator()
         menuItem(inspectLastAction, icon:null)
         menuItem(inspectVariablesAction, icon:null)
         menuItem(inspectAstAction, icon:null)
+        menuItem(inspectTokensAction, icon:null)
     }
 }
 

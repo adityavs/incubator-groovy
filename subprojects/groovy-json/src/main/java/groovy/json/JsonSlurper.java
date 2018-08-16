@@ -18,10 +18,10 @@
  */
 package groovy.json;
 
-import groovy.json.internal.JsonFastParser;
-import groovy.json.internal.JsonParserCharArray;
-import groovy.json.internal.JsonParserLax;
-import groovy.json.internal.JsonParserUsingCharacterSource;
+import org.apache.groovy.json.internal.JsonFastParser;
+import org.apache.groovy.json.internal.JsonParserCharArray;
+import org.apache.groovy.json.internal.JsonParserLax;
+import org.apache.groovy.json.internal.JsonParserUsingCharacterSource;
 import org.codehaus.groovy.runtime.DefaultGroovyMethodsSupport;
 import org.codehaus.groovy.runtime.ResourceGroovyMethods;
 
@@ -30,7 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
-import java.util.*;
+import java.util.Map;
 
 /**
  * This has the same interface as the original JsonSlurper written for version 1.8.0, but its
@@ -40,8 +40,8 @@ import java.util.*;
  * JSON slurper parses text or reader content into a data structure of lists and maps.
  * <p>
  * Example usage:
- * <code><pre>
- * def slurper = new JsonSlurper()
+ * <code><pre class="groovyTestCase">
+ * def slurper = new groovy.json.JsonSlurper()
  * def result = slurper.parseText('{"person":{"name":"Guillaume","age":33,"pets":["dog","cat"]}}')
  *
  * assert result.person.name == "Guillaume"
@@ -200,7 +200,7 @@ public class JsonSlurper {
      */
     public Object parseText(String text) {
         if (text == null || "".equals(text)) {
-            throw new IllegalArgumentException("Text must not be null");
+            throw new IllegalArgumentException("Text must not be null or empty");
         }
         return createParser().parse(text);
     }

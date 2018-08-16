@@ -22,7 +22,7 @@ import org.codehaus.groovy.control.CompilerConfiguration
 
 class ClassReloadingTest extends GroovyTestCase {
 
-    public void testReloading() {
+    void testReloading() {
         def file = File.createTempFile("TestReload", ".groovy", new File("target"))
         file.deleteOnExit()
         def className = file.name - ".groovy"
@@ -63,7 +63,7 @@ class ClassReloadingTest extends GroovyTestCase {
         }
     }
 
-    public void testReloadingInStringStringVersion() {
+    void testReloadingInStringStringVersion() {
         def fileName = "Dummy3981.groovy"
 
         def cl = new GroovyClassLoader(this.class.classLoader);
@@ -89,8 +89,7 @@ class ClassReloadingTest extends GroovyTestCase {
         assert "goodbye" == message
     }
 
-
-    public void testReloadingIfInitialFileMissesTimestamp() {
+    void testReloadingIfInitialFileMissesTimestamp() {
         def parent = File.createTempDir("reload","test")
         def file = File.createTempFile("TestReload", ".groovy", parent)
         file.deleteOnExit()
@@ -109,7 +108,6 @@ class ClassReloadingTest extends GroovyTestCase {
               }
             """
             def groovyClass = cl.loadClass(className, true, false)
-            println System.identityHashCode(groovyClass)
             assert !groovyClass.declaredFields.any { it.name.contains('__timeStamp') }
             def message = groovyClass.newInstance().greeting
             assert "hello" == message
@@ -132,7 +130,6 @@ class ClassReloadingTest extends GroovyTestCase {
 
             // reload
             groovyClass = cl.loadClass(className, true, false)
-            println System.identityHashCode(groovyClass)
             assert groovyClass.declaredFields.any { it.name.contains('__timeStamp') }
             message = groovyClass.newInstance().greeting
             assert "goodbye" == message

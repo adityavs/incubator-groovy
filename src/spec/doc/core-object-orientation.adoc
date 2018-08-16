@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -22,17 +35,66 @@ Groovy supports the same primitive types as those defined by the {jls}[Java Lang
 * `boolean` type (exactly `true` or `false`)
 * `char` type (16 bit, usable as a numeric type, representing an UTF-16 code)
 
+While Groovy declares and stores primitive fields and variables as primitives, because it uses Objects for
+everything, it autowraps references to primitives. Just like Java, the wrappers it uses are
+
+[cols="1,1" options="header"]
+.primitive wrappers
+|====
+| Primitive type
+| Wrapper class
+
+| boolean
+| Boolean
+
+| char
+| Character
+
+| short
+| Short
+
+| int
+| Integer
+
+| long
+| Long
+
+| float
+| Float
+
+| double
+| Double
+|====
+
+Here's an example using `int`
+
+[source,groovy]
+----
+include::{projectdir}/src/spec/test/PrimitiveTest.groovy[tags=primitive_references,indent=0]
+----
+
+Now you may be concerned that this means every time you use a mathematical operator on a reference to a primitive
+that you'll incur the cost of unboxing and reboxing the primitive. But this is not the case, as Groovy will compile
+your operators into their link:core-operators.html#_operator-overloading[method equivalents] and uses those instead.
+Additionally, Groovy will automatically unbox to a primitive when calling a Java method that takes a primitive
+parameter and automatically box primitive method return values from Java. However, be aware there are some
+link:core-differences-java.html#_primitives_and_wrappers[differences] from Java's method resolution.
+
 === Class
 
-Groovy classes are very similar to Java classes, being compatible to those ones at JVM level. They may have methods and fields/properties, which can have the same modifiers (public, protected, private, static, etc) as Java classes.
+Groovy classes are very similar to Java classes, and are compatible with Java ones at JVM level.
+They may have methods, fields and properties (think JavaBean properties but with less boilerplate).
+Classes and class members can have the same modifiers (public, protected, private, static, etc) as in Java
+with some minor differences at the source level which are explained shortly.
 
-Here are key aspects of Groovy classes, that are different from their Java counterparts:
+The key differences between Groovy classes and their Java counterparts are:
 
-* Public fields are turned into properties automatically, which results in less verbose code,
-without so many getter and setter methods. More on this aspect will be covered in the <<fields,fields and properties section>>.
-* Their declarations and any property or method without an access modifier are public.
-* Classes do not need to have the same name of the files where they are defined.
-* One file may contain one or more classes (but if a file contains no classes, it is considered a script).
+* Classes or methods with no visibility modifier are automatically public (a special annotation can be used to achieve package private visibility).
+* Fields with no visibility modifier are turned into properties automatically, which results in less verbose code,
+since explicit getter and setter methods aren't needed. More on this aspect will be covered in the <<fields,fields and properties section>>.
+* Classes do not need to have the same base name as their source file definitions but it is highly recommended in most scenarios (see also the next point about scripts).
+* One source file may contain one or more classes (but if a file contains any code not in a class, it is considered a script). Scripts are just classes with some
+special conventions and will have the same name as their source file (so don't include a class definition within a script having the same name as the script source file).
 
 The following code presents an example class.
 
@@ -178,13 +240,28 @@ important features described in this manual.
 
 === Constructors
 
-Constructors are special methods used to initialize an object with a specific state. As in normal methods, it is possible for a class to declare more than one constructor. In Groovy there are two ways to invoke constructors: with positional parameters or named parameters. The former one is like we invoke Java constructors, while the second way allows one to specify the parameter names when invoking the constructor.
+Constructors are special methods used to initialize an object with a specific state. As with normal methods,
+it is possible for a class to declare more than one constructor, so long as each constructor has a unique
+type signature. If an object doesn't require any parameters during construction, it may use a _no-arg_ constructor.
+If no constructors are supplied, an empty no-arg constructor will be provided by the Groovy compiler. For constructors
+with parameters, Groovy supports two invocation styles: using positional parameters or named parameters.
+The former style is similar to how you would use Java constructors, while the second way
+allows one to specify parameter names when invoking the constructor.
 
 ==== Positional argument constructor
 
-To create an object by using positional argument constructors, the respective class needs to declare each of the constructors it allows being called. A side effect of this is that, once at least one constructor is declared, the class can only be instantiated by getting one of its constructors called. It is worth noting that, in this case, there is no way to create the class with named parameters.
+To create an object by using positional argument constructors, the respective class needs to declare one or more
+constructors. In the case of multiple constructors, each must have a unique type signature. The constructors can also
+added to the class using the gapi:groovy.transform.TupleConstructor[] annotation.
 
-There is three forms of using a declared constructor. The first one is the normal Java way, with the `new` keyword. The others rely on coercion of lists into the desired types. In this case, it is possible to coerce with the `as` keyword and by statically typing the variable.
+Typically, once at least one constructor is declared, the class can only be instantiated by having one of its
+constructors called. It is worth noting that, in this case, you can't normally create the class with named parameters.
+Groovy does support named parameters so long as the class contains a no-arg constructor or a constructor which takes
+a single `Map` argument - see the next section for details.
+
+There are three forms of using a declared constructor. The first one is the normal Java way, with the `new` keyword.
+The others rely on coercion of lists into the desired types. In this case, it is possible to coerce with the `as`
+keyword and by statically typing the variable.
 
 [source,groovy]
 ----
@@ -198,7 +275,11 @@ include::{projectdir}/src/spec/test/ClassTest.groovy[tags=constructor_positional
 
 ==== Named argument constructor
 
-If no constructor is declared, it is possible to create objects by passing parameters in the form of a map (property/value pairs). This can be in handy in cases where one wants to allow several combinations of parameters. Otherwise, by using traditional positional parameters it would be necessary to declare all possible constructors.
+If no (or a no-arg) constructor is declared, it is possible to create objects by passing parameters in the form of a
+map (property/value pairs). This can be in handy in cases where one wants to allow several combinations of parameters.
+Otherwise, by using traditional positional parameters it would be necessary to declare all possible constructors.
+Having a constructor taking a single `Map` argument is also supported - such a constructor may also be added using
+the gapi:groovy.transform.MapConstructor[] annotation.
 
 [source,groovy]
 ----
@@ -210,7 +291,20 @@ include::{projectdir}/src/spec/test/ClassTest.groovy[tags=constructor_named_para
 <4> `age` parameter given in the instantiation
 <5> `name` and `age` parameters given in the instantiation
 
-It is important to highlight, however, that this approach gives more power to the constructor caller, while imposes a major responsibility to it. Thus, if a restriction is needed, one can just declare one or more constructors, and the instantiation by named parameters will no longer be available.
+It is important to highlight, however, that this approach gives more power to the constructor caller,
+while imposing an increased responsibility on the caller to get the names and value types correct.
+Thus, if greater control is desired, declaring constructors using positional parameters might be preferred.
+
+Notes:
+
+* While the example above supplied no constructor, you can also supply a no-arg constructor
+or a constructor with a single `Map` argument as previously mentioned.
+* You can support both named and positional construction
+by supply both positional constructors as well as a no-arg or Map constructor.
+* When no (or a no-arg) constructor is declared, Groovy replaces the named constructor call by a call
+to the no-arg constructor followed by calls to the setter for each supplied named property. So, you
+might be better off using the Map constructor if your properties are declared as `final` (since they
+must be set in the constructor rather than after the fact with setters).
 
 
 === Methods
@@ -299,15 +393,35 @@ include::{projectdir}/src/spec/test/objectorientation/MethodsTest.groovy[tags=va
 
 ==== Exception declaration
 
-(TBD)
+Groovy automatically allows you to treat checked exceptions like unchecked exceptions.
+This means that you don't need to declare any checked exceptions that a method may throw
+as shown in the following example which can throw a `FileNotFoundException` if the file isn't found:
 
+[source,groovy]
+----
+include::{projectdir}/src/spec/test/objectorientation/MethodsTest.groovy[tags=idiomatic_method_declaration,indent=0]
+----
+
+Nor will you be required to surround the call to the `badRead` method in the previous example within a try/catch
+block - though you are free to do so if you wish.
+
+If you wish to declare any exceptions that your code might throw (checked or otherwise) you are free to do so.
+Adding exceptions won't change how the code is used from any other Groovy code but can be seen as documentation
+for the human reader of your code. The exceptions will become part of the method declaration in the bytecode,
+so if your code might be called from Java, it might be useful to include them.
+Using an explicit checked exception declaration is illustrated in the following example:
+
+[source,groovy]
+----
+include::{projectdir}/src/spec/test/objectorientation/MethodsTest.groovy[tags=checked_method_declaration,indent=0]
+----
 
 === Fields and properties
 
 [[fields]]
 ==== Fields
 
-A field is a member of a class or a trait which:
+A field is a member of a class or a trait which has:
 
 * a mandatory _access modifier_ (`public`, `protected`, or `private`)
 * one or more optional _modifiers_ (`static`, `final`, `synchronized`)
@@ -347,9 +461,13 @@ to omit the type.
 [[properties]]
 ==== Properties
 
-A property is a combination of a private field and getters/setters. You can define a property with:
+A property is an externally visible feature of a class. Rather than just using a public field to represent
+such features (which provides a more limited abstraction and would restrict refactoring possibilities),
+the typical convention in Java is to follow JavaBean conventions, i.e. represent the property using a
+combination of a private backing field and getters/setters. Groovy follows these same conventions
+but provides a simpler approach to defining the property. You can define a property with:
 
-* an *absent* access modifier (no `public`, `protected` or `final`)
+* an *absent* access modifier (no `public`, `protected` or `private`)
 * one or more optional _modifiers_ (`static`, `final`, `synchronized`)
 * an optional _type_
 * a mandatory _name_
@@ -398,14 +516,15 @@ It is possible to list the properties of a class thanks to the meta `properties`
 include::{projectdir}/src/spec/test/ClassTest.groovy[tags=properties_meta,indent=0]
 ----
 
-By convention, Groovy will recognize properties even if there is no backing field, if there are getters or setters
+By convention, Groovy will recognize properties even if there is no backing field
+provided there are getters or setters
 that follow the Java Beans specification. For example:
 
 [source,groovy]
 ----
 include::{projectdir}/src/spec/test/ClassTest.groovy[tags=pseudo_properties,indent=0]
 ----
-<1> reading `p.name` is allowed because there is a pseudo-property `name`
+<1> writing `p.name` is allowed because there is a pseudo-property `name`
 <2> reading `p.age` is allowed because there is a pseudo-readonly property `age`
 <3> writing `p.groovy` is allowed because there is a pseudo-writeonly property `groovy`
 
@@ -780,7 +899,7 @@ include::{projectdir}/src/spec/test/ClassTest.groovy[tags=compiledynamic_process
 <11> we add that expression to the annotation node, which is now `@CompileStatic(TypeCheckingMode.SKIP)`
 <12> return the generated annotation
 
-In the example, the `visit` method is the only method which has to be overriden. It is meant to return a list of
+In the example, the `visit` method is the only method which has to be overridden. It is meant to return a list of
 annotation nodes that will be added to the node annotated with the meta-annotation. In this example, we return a
 single one corresponding to `@CompileStatic(TypeCheckingMode.SKIP)`.
 

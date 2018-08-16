@@ -42,6 +42,24 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
         """
     }
 
+    void testHashCodeNullWrapperTypeCompileStatic_GROOVY7518() {
+        assertScript """
+            import groovy.transform.*
+
+            @EqualsAndHashCode
+            @CompileStatic
+            class Person {
+                Character someCharacter
+                Integer someInteger
+                Long someLong
+                Float someFloat
+                Double someDouble
+            }
+
+            assert new Person().hashCode()
+        """
+    }
+
     void testBooleanPropertyGROOVY6407() {
         assertScript """
             @groovy.transform.EqualsAndHashCode
@@ -54,7 +72,7 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
                 }
 
                 static main(args) {
-                    assert new Demo().hashCode() == 8730
+                    assert new Demo().hashCode() == 7590
                     assert new Demo(myBooleanProperty: true).toString() == 'Demo(false)'
                 }
             }
@@ -424,13 +442,13 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
     // GROOVY-5864
     void testExternalizeMethodsWithImmutable() {
         try {
-            new GroovyShell().parse """
+            new GroovyShell().parse '''
                 @groovy.transform.ExternalizeMethods
                 @groovy.transform.Immutable
                 class Person {
                     String first
                 }
-            """
+            '''
             fail('The compilation should have failed as the final field first (created via @Immutable) is being assigned to (via @ExternalizeMethods).')
         } catch (MultipleCompilationErrorsException e) {
             def syntaxError = e.errorCollector.getSyntaxError(0)
@@ -441,10 +459,10 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
     // GROOVY-5864
     void testExternalizeVerifierWithNonExternalizableClass() {
         try {
-            new GroovyShell().parse """
+            new GroovyShell().parse '''
                 @groovy.transform.ExternalizeVerifier
                 class Person { }
-            """
+            '''
             fail("The compilation should have failed as the class doesn't implement Externalizable")
         } catch (MultipleCompilationErrorsException e) {
             def syntaxError = e.errorCollector.getSyntaxError(0)
@@ -455,14 +473,14 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
     // GROOVY-5864
     void testExternalizeVerifierWithFinalField() {
         try {
-            new GroovyShell().parse """
+            new GroovyShell().parse '''
                 @groovy.transform.ExternalizeVerifier
                 class Person implements Externalizable {
                     final String first
                     void writeExternal(ObjectOutput out)throws IOException{ }
                     void readExternal(ObjectInput objectInput)throws IOException,ClassNotFoundException{ }
                 }
-            """
+            '''
             fail("The compilation should have failed as the final field first (can't be set inside readExternal).")
         } catch (MultipleCompilationErrorsException e) {
             def syntaxError = e.errorCollector.getSyntaxError(0)
@@ -473,13 +491,13 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
     // GROOVY-5864
     void testAutoExternalizeWithoutNoArg() {
         try {
-            new GroovyShell().parse """
+            new GroovyShell().parse '''
                 @groovy.transform.AutoExternalize
                 class Person {
                     Person(String first) {}
                     String first
                 }
-            """
+            '''
             fail("The compilation should have failed as there is no no-arg constructor.")
         } catch (MultipleCompilationErrorsException e) {
             def syntaxError = e.errorCollector.getSyntaxError(0)
@@ -490,7 +508,7 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
     // GROOVY-5864
     void testExternalizeVerifierWithNonExternalizableField() {
         try {
-            new GroovyShell().parse """
+            new GroovyShell().parse '''
                 class Name {}
 
                 @groovy.transform.ExternalizeVerifier(checkPropertyTypes=true)
@@ -500,7 +518,7 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
                     void writeExternal(ObjectOutput out)throws IOException{ }
                     void readExternal(ObjectInput objectInput)throws IOException,ClassNotFoundException{ }
                 }
-            """
+            '''
             fail("The compilation should have failed as the type of Name isn't Externalizable or Serializable.")
         } catch (MultipleCompilationErrorsException e) {
             def syntaxError = e.errorCollector.getSyntaxError(0)
@@ -529,6 +547,18 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
             def bais = new ByteArrayInputStream(baos.toByteArray())
             bais.withObjectInputStream { is -> assert is.readObject().toString() == 'Person7CS(Name7CS(John, Smith), Address7CS(somewhere lane, my town), 21, true)' }
         """
+    }
+
+    void testAutoExternalizeNestedClassCompileStatic_GROOVY7644() {
+        new GroovyShell().evaluate '''
+            import org.codehaus.groovy.transform.*
+
+            def orig = new Person7NestedAddressCS.Address7CS(street: 'somewhere lane', town: 'my town')
+            def baos = new ByteArrayOutputStream()
+            baos.withObjectOutputStream{ os -> os.writeObject(orig) }
+            def bais = new ByteArrayInputStream(baos.toByteArray())
+            bais.withObjectInputStream { is -> assert is.readObject().toString() == 'Person7NestedAddressCS$Address7CS(somewhere lane, my town)' }
+        '''
     }
 
     // GROOVY-4570
@@ -610,6 +640,49 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
         """
     }
 
+    void testincludeSuperFieldsAndroperties_GROOVY8013() {
+        new GroovyShell().evaluate """
+            import groovy.transform.*
+
+            @ToString
+            class Foo {
+                String baz = 'baz'
+                protected String baz2
+            }
+
+            @TupleConstructor(includes='a,b,baz2', includeSuperFields=true)
+            @ToString(includes='a,c,super,baz,d', includeFields=true, includeSuperProperties=true, includeSuper=true)
+            class Bar extends Foo {
+                int a = 1
+                int b = 2
+                private int c = 3
+                public int d = 4
+            }
+
+            assert new Bar().toString() == 'Bar(1, 3, Foo(baz), baz, 4)'
+        """
+    }
+
+    void testOrderTupleParamsUsingIncludes_GROOVY8016() {
+        new GroovyShell().evaluate """
+            import groovy.transform.*
+
+            @ToString
+            class Foo {
+                String a
+                String c
+            }
+            @TupleConstructor(includes='d,c,b,a', includeSuperProperties=true, includeFields=true)
+            @ToString(includes='super,b,d', includeFields=true, includeSuperProperties=true, includeSuper=true)
+            class Bar extends Foo {
+                String d
+                private String b
+            }
+
+            assert new Bar('1', '2', '3', '4').toString() == 'Bar(Foo(4, 2), 3, 1)'
+        """
+    }
+
     void testTupleConstructorWithForceDirectBypassesSetters_GROOVY7087() {
         new GroovyShell().evaluate """
             import groovy.transform.*
@@ -687,6 +760,30 @@ class CanonicalComponentsTransformTest extends GroovyShellTestCase {
             assert d1.hashCode() == d2.hashCode()
             assert d1 == d2
         """
+    }
+
+    void testHashCodeForInstanceWithNullPropertyAndField() {
+        new GroovyShell().evaluate """
+            import groovy.transform.*
+            @EqualsAndHashCode(includeFields = true)
+            class FieldAndPropertyIncludedInHashCode {            
+                private String field
+                String property
+            }
+            assert new FieldAndPropertyIncludedInHashCode().hashCode() == 442087
+        """
+    }
+
+    void testHashCodeForInstanceWithNullPropertyAndJavaBeanProperty() {
+        new GroovyShell().evaluate '''
+            import groovy.transform.*
+            @EqualsAndHashCode(allProperties = true)
+            class FieldAndPropertyIncludedInHashCode {            
+                String property
+                String getField() { null }
+            }
+            assert new FieldAndPropertyIncludedInHashCode().hashCode() == 442087
+        '''
     }
 }
 
@@ -844,6 +941,16 @@ class Name7CS implements Serializable { String first, last }
 @ToString(includePackage=false)
 @CompileStatic
 class Address7CS { String street, town }
+
+// GROOVY-7644
+class Person7NestedAddressCS {
+    @ToString(includePackage=false)
+    @AutoExternalize(checkPropertyTypes=true)
+    @CompileStatic
+    static class Address7CS {
+        String street, town
+    }
+}
 
 // GROOVY-4786
 @EqualsAndHashCode(excludes="y")

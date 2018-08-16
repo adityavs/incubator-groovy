@@ -22,10 +22,6 @@ import gls.CompilableTestSupport
 
 /**
  * Tests various properties of annotation definitions.
- *
- * @author Jochen Theodorou
- * @author Guillaume Laforge
- * @author Paul King
  */
 class AnnotationTest extends CompilableTestSupport {
 
@@ -642,8 +638,11 @@ class AnnotationTest extends CompilableTestSupport {
                 double d4() default 2.3 as double
             }
             @Foo method() {}
-            assert getClass().getMethod('method').getAnnotation(Foo).toString()[5..-2].tokenize(', ').sort().join('|') ==
-                    'b=6|c1=A|c2=B|c3=C|c4=D|d1=2.0|d2=2.1|d3=2.2|d4=2.3|f1=1.0|f2=1.1|f3=1.2|f4=1.3|i1=0|i2=1|s1=2|s2=3|s3=4|s4=5'
+            def string = getClass().getMethod('method').getAnnotation(Foo).toString()[5..-2].tokenize(', ').sort().join('|')
+            assert string == 'b=6|c1=A|c2=B|c3=C|c4=D|d1=2.0|d2=2.1|d3=2.2|d4=2.3|f1=1.0|f2=1.1|f3=1.2|f4=1.3|i1=0|i2=1|s1=2|s2=3|s3=4|s4=5' ||
+                    // changed in some jdk9 versions
+                   string == "b=6|c1='A'|c2='B'|c3='C'|c4='D'|d1=2.0|d2=2.1|d3=2.2|d4=2.3|f1=1.0f|f2=1.1f|f3=1.2f|f4=1.3f|i1=0|i2=1|s1=2|s2=3|s3=4|s4=5"
+
         '''
     }
 
@@ -668,6 +667,131 @@ class AnnotationTest extends CompilableTestSupport {
 
     void testAnnotateAnnotationDefinitionWithAnnotationWithAnnotationTypeTarget() {
         shouldCompile codeWithMetaAnnotationWithTarget("ANNOTATION_TYPE")
+    }
+
+    // GROOVY-7806
+    void testNewlinesAllowedBeforeBlock() {
+        shouldCompile '''
+            @interface ANNOTATION_A
+            {
+            }
+        '''
+    }
+
+    // GROOVY-8226
+    void testAnnotationOnParameterType() {
+        assertScript '''
+            import java.lang.annotation.*
+            import static java.lang.annotation.ElementType.*
+            import static java.lang.annotation.RetentionPolicy.*
+
+            @Target([PARAMETER, FIELD, METHOD, ANNOTATION_TYPE, TYPE_USE])
+            @Retention(RUNTIME)
+            public @interface NonNull { }
+
+            class Foo {
+              @NonNull public Integer foo
+              @NonNull public Integer bar(@NonNull String baz) {}
+            }
+
+            def expected = '@NonNull()'
+            def foo = Foo.getField('foo')
+            assert foo.annotations[0].toString() == expected
+            def bar = Foo.getMethod('bar', String)
+            assert bar.annotations[0].toString() == expected
+            def baz = bar.parameters[0]
+            assert baz.annotations[0].toString() == expected
+        '''
+    }
+
+    // GROOVY-8234
+    void testAnnotationWithRepeatableSupported() {
+        assertScript '''
+            import java.lang.annotation.*
+
+            class MyClass {
+                // TODO confirm the JDK9 behavior is what we expect
+                private static final List<String> expected = [
+                    '@MyAnnotationArray(value=[@MyAnnotation(value=val1), @MyAnnotation(value=val2)])',    // JDK5-8
+                    '@MyAnnotationArray(value={@MyAnnotation(value="val1"), @MyAnnotation(value="val2")})' // JDK9
+                ]
+
+                // control
+                @MyAnnotationArray([@MyAnnotation("val1"), @MyAnnotation("val2")])
+                String method1() { 'method1' }
+
+                // duplicate candidate for auto collection
+                @MyAnnotation(value = "val1")
+                @MyAnnotation(value = "val2")
+                String method2() { 'method2' }
+
+                static void main(String... args) {
+                    MyClass myc = new MyClass()
+                    assert 'method1' == myc.method1()
+                    assert 'method2' == myc.method2()
+                    assert expected.contains(checkAnnos(myc, "method1"))
+                    assert expected.contains(checkAnnos(myc, "method2"))
+                }
+
+                private static String checkAnnos(MyClass myc, String name) {
+                    def m = myc.getClass().getMethod(name)
+                    List annos = m.getAnnotations()
+                    assert annos.size() == 1
+                    annos[0].toString()
+                }
+            }
+
+            @Target(ElementType.METHOD)
+            @Retention(RetentionPolicy.RUNTIME)
+            @Repeatable(MyAnnotationArray)
+            @interface MyAnnotation {
+                String value() default "val0"
+            }
+
+            @Retention(RetentionPolicy.RUNTIME)
+            @interface MyAnnotationArray {
+                MyAnnotation[] value()
+            }
+        '''
+    }
+
+    void testAnnotationWithRepeatableSupportedPrecompiledJava() {
+        assertScript '''
+            import java.lang.annotation.*
+            import gls.annotations.*
+
+            class MyClass {
+                // TODO confirm the JDK9 behavior is what we expect
+                private static final List<String> expected = [
+                    '@gls.annotations.Requires(value=[@gls.annotations.Require(value=val1), @gls.annotations.Require(value=val2)])',    // JDK5-8
+                    '@gls.annotations.Requires(value={@gls.annotations.Require(value="val1"), @gls.annotations.Require(value="val2")})' // JDK9
+                ]
+
+                // control
+                @Requires([@Require("val1"), @Require("val2")])
+                String method1() { 'method1' }
+
+                // duplicate candidate for auto collection
+                @Require(value = "val1")
+                @Require(value = "val2")
+                String method2() { 'method2' }
+
+                static void main(String... args) {
+                    MyClass myc = new MyClass()
+                    assert 'method1' == myc.method1()
+                    assert 'method2' == myc.method2()
+                    assert expected.contains(checkAnnos(myc, "method1"))
+                    assert expected.contains(checkAnnos(myc, "method2"))
+                }
+
+                private static String checkAnnos(MyClass myc, String name) {
+                    def m = myc.getClass().getMethod(name)
+                    List annos = m.getAnnotations()
+                    assert annos.size() == 1
+                    annos[0].toString()
+                }
+            }
+        '''
     }
 
     //Parametrized tests in Spock would allow to make it much more readable

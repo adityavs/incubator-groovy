@@ -20,14 +20,16 @@ package groovy.sql;
 
 import groovy.lang.Closure;
 import groovy.lang.GroovyRuntimeException;
+import groovy.transform.stc.ClosureParams;
+import groovy.transform.stc.SimpleType;
 import org.codehaus.groovy.ast.ClassNode;
-import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.CodeVisitorSupport;
+import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.stmt.Statement;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -76,14 +78,14 @@ public class DataSet extends Sql {
     private Closure sort;
     private boolean reversed = false;
     private DataSet parent;
-    private String table;
+    private final String table;
     private SqlWhereVisitor visitor;
     private SqlOrderByVisitor sortVisitor;
     private String sql;
     private List<Object> params;
     private List<Object> batchData;
     private Set<String> batchKeys;
-    private Sql delegate;
+    private final Sql delegate;
     private boolean withinDataSetBatch = false;
 
     public DataSet(Sql sql, Class type) {
@@ -211,7 +213,7 @@ public class DataSet extends Sql {
         withinDataSetBatch = true;
         closure.call(this);
         withinDataSetBatch = false;
-        if (batchData.size() == 0) {
+        if (batchData.isEmpty()) {
             return EMPTY_INT_ARRAY;
         }
         Closure transformedClosure = new Closure(null) {
@@ -232,7 +234,7 @@ public class DataSet extends Sql {
      */
     public void add(Map<String, Object> map) throws SQLException {
         if (withinDataSetBatch) {
-            if (batchData.size() == 0) {
+            if (batchData.isEmpty()) {
                 batchKeys = map.keySet();
             } else {
                 if (!map.keySet().equals(batchKeys)) {
@@ -332,7 +334,7 @@ public class DataSet extends Sql {
      * @throws SQLException if a database access error occurs
      * @see groovy.sql.Sql#eachRow(String, java.util.List, groovy.lang.Closure)
      */
-    public void each(Closure closure) throws SQLException {
+    public void each(@ClosureParams(value=SimpleType.class, options="groovy.sql.GroovyResultSet") Closure closure) throws SQLException {
         eachRow(getSql(), getParameters(), closure);
     }
 
@@ -346,7 +348,8 @@ public class DataSet extends Sql {
      * @throws SQLException if a database access error occurs
      * @see groovy.sql.Sql#eachRow(String, java.util.List, int, int, groovy.lang.Closure)
      */
-    public void each(int offset, int maxRows, Closure closure) throws SQLException {
+    public void each(int offset, int maxRows,
+                     @ClosureParams(value=SimpleType.class, options="groovy.sql.GroovyResultSet") Closure closure) throws SQLException {
         eachRow(getSql(), getParameters(), offset, maxRows, closure);
     }
 
@@ -423,7 +426,7 @@ public class DataSet extends Sql {
         return sortVisitor;
     }
 
-    private void visit(Closure closure, CodeVisitorSupport visitor) {
+    private static void visit(Closure closure, CodeVisitorSupport visitor) {
         if (closure != null) {
             ClassNode classNode = closure.getMetaClass().getClassNode();
             if (classNode == null) {

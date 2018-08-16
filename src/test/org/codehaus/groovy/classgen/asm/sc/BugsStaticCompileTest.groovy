@@ -22,8 +22,6 @@ import groovy.transform.stc.BugsSTCTest
 
 /**
  * Unit tests for static type checking : bugs.
- *
- * @author Cedric Champeau
  */
 class BugsStaticCompileTest extends BugsSTCTest implements StaticCompilationTestSupport {
 
@@ -259,7 +257,7 @@ class BugsStaticCompileTest extends BugsSTCTest implements StaticCompilationTest
         }
         A a = new A()
         @ASTTest(phase=INSTRUCTION_SELECTION, value={
-            assert node.getNodeMetaData(INFERRED_TYPE) == int_TYPE
+            assert node.getNodeMetaData(INFERRED_TYPE) == Integer_TYPE
         })
         def x = a?.x
         '''
@@ -272,7 +270,7 @@ class BugsStaticCompileTest extends BugsSTCTest implements StaticCompilationTest
         }
         A a = new A()
         @ASTTest(phase=INSTRUCTION_SELECTION, value={
-            assert node.getNodeMetaData(INFERRED_TYPE) == long_TYPE
+            assert node.getNodeMetaData(INFERRED_TYPE) == Long_TYPE
         })
         def x = a?.x
         '''
@@ -285,7 +283,7 @@ class BugsStaticCompileTest extends BugsSTCTest implements StaticCompilationTest
         }
         A a = new A()
         @ASTTest(phase=INSTRUCTION_SELECTION, value={
-            assert node.getNodeMetaData(INFERRED_TYPE) == char_TYPE
+            assert node.getNodeMetaData(INFERRED_TYPE) == Character_TYPE
         })
         def x = a?.x
         assert x == 'a'
@@ -902,7 +900,6 @@ import groovy.transform.TypeCheckingMode
             import javax.servlet.ServletRegistration
 
             /**
-
              * author: Richard Vowles - http://gplus.to/RichardVowles
              */
             @CompileStatic
@@ -1391,6 +1388,80 @@ println someInt
             Foo foo = new Foo().setNum(1).setName('fluent')
             assert foo.num == 1
             assert foo.name == 'fluent'
+        '''
+    }
+
+    // GROOVY-7610
+    void testNullSafeIsCallConditionShouldNotThrowVerifyError() {
+        assertScript '''
+            class A {
+                void ifCondition(Object x, Object y) {
+                    if (x?.is(y))
+                        return
+                }
+
+                void ternaryCondition(Object x, Object y) {
+                    x?.is(y) ? 'foo' : 'bar'
+                }
+            }
+            new A()
+        '''
+    }
+
+    // GROOVY-7631
+    void testPrimitiveNotEqualNullShouldReturnTrue() {
+        assertScript '''
+            assert false != null
+            assert true != null
+            assert (byte) 1 != null
+            assert (short) 1 != null
+            assert 0 != null
+            assert 1 != null
+            assert 1L != null
+            assert 1f != null
+            assert 1d != null
+            assert (char) 1 != null
+        '''
+    }
+
+    // GROOVY-7639
+    void testComparisonOfPrimitiveWithNullSafePrimitivePropertyExpression() {
+        assertScript '''
+            class Foo {
+                int bar
+            }
+            Foo foo = null
+            assert !(foo?.bar == 7)
+            assert !(foo?.bar > 7)
+            assert foo?.bar < 7
+        '''
+    }
+
+    // GROOVY-7841
+    void testAssertionOfNonZeroPrimitiveEdgeCases() {
+        assertScript '''
+            assert 4294967296
+            assert 0.1f
+            assert 0.1d
+        '''
+    }
+
+    // GROOVY-7784
+    void testWithSamAndVarArgs() {
+        assertScript '''
+            class Foo {
+                static foo(Integer x, Iterable y, String... z) { [*y.toList(), *z].join('-') }
+            }
+
+            class Groovy7784 {
+                static emptyVarArgs() { Foo.foo(42, { ['foo', 'bar'].iterator() }) }
+                static singleVarArgs() { Foo.foo(42, { ['foo', 'bar'].iterator() }, 'baz') }
+                static multiVarArgs() { Foo.foo(42, { ['foo', 'bar'].iterator() }, 'baz1', 'baz2') }
+            }
+
+            assert Groovy7784.emptyVarArgs() == 'foo-bar'
+            assert Groovy7784.singleVarArgs() == 'foo-bar-baz'
+            assert Groovy7784.multiVarArgs() == 'foo-bar-baz1-baz2'
         '''
     }
 }

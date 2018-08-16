@@ -18,14 +18,10 @@
  */
 package groovy.ui
 
-import groovy.swing.factory.ActionFactory;
-
+import javax.swing.*
+import java.awt.*
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
-
-import javax.swing.KeyStroke
-
-import java.awt.Toolkit
 
 newFileAction = action(
     name: 'New File',
@@ -193,7 +189,9 @@ clearOutputAction = action(
     name: 'Clear Output',
     closure: controller.&clearOutput,
     mnemonic: 'C',
-    accelerator: shortcut('W')
+    accelerator: shortcut('W'),
+    smallIcon: imageIcon(resource:'icons/clear.png', class:this),
+    shortDescription: 'Clear Output Area'
 )
 
 runAction = action(
@@ -226,6 +224,11 @@ addClasspathDir = action(
     mnemonic: 'D',
 )
 
+listClasspath = action(
+    name: 'List Classpath',
+    closure: controller.&listClasspath
+)
+
 clearClassloader = action(
     name: 'Clear Script Context',
     closure: controller.&clearContext,
@@ -251,6 +254,13 @@ inspectAstAction = action(
     closure: controller.&inspectAst,
     mnemonic: 'A',
     accelerator: shortcut('T'),
+)
+
+inspectTokensAction = action(
+    name: 'Inspect Tokens',
+    closure: controller.&inspectTokens,
+    mnemonic: 'T',
+    accelerator: shortcut('K'),
 )
 
 captureStdOutAction = action(
@@ -382,4 +392,26 @@ commentAction = action(
     // Ctrl or Command + /
     accelerator: KeyStroke.getKeyStroke(KeyEvent.VK_SLASH, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()),
     shortDescription: 'Comment/Uncomment Selected Script'
+)
+
+selectBlockAction = action(
+    name: 'Select Block',
+    closure: controller.&selectBlock,
+    mnemonic: 'B',
+    accelerator: shortcut('B'),
+    shortDescription: 'Selects current Word, Line or Block in Script'
+)
+
+indyAction = action(
+    name: 'Enable Indy Compilation',
+    closure: controller.&indy,
+    mnemonic: 'I',
+    shortDescription: 'Enable InvokeDynamic (Indy) compilation for scripts'
+)
+
+preferencesAction = action(
+    name: 'Preferences',
+    closure: controller.&preferences,
+    mnemonic: 'S',
+    shortDescription: 'Preference Settings'
 )

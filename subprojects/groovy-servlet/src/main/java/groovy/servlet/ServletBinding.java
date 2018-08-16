@@ -20,6 +20,8 @@ package groovy.servlet;
 
 import groovy.lang.Binding;
 import groovy.xml.MarkupBuilder;
+import org.codehaus.groovy.GroovyBugError;
+import org.codehaus.groovy.runtime.MethodClosure;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
@@ -27,11 +29,11 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.codehaus.groovy.GroovyBugError;
-import org.codehaus.groovy.runtime.MethodClosure;
-
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.lang.reflect.Constructor;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
@@ -123,7 +125,7 @@ public class ServletBinding extends Binding {
      * @author Jochen Theodorou
      */
     private static class ServletOutput {
-        private HttpServletResponse response;
+        private final HttpServletResponse response;
         private ServletOutputStream outputStream;
         private PrintWriter writer;
         
@@ -329,7 +331,7 @@ public class ServletBinding extends Binding {
         super.setVariable("redirect", c);
     }
 
-    private void validateArgs(String name, String message) {
+    private static void validateArgs(String name, String message) {
         if (name == null) {
             throw new IllegalArgumentException(message + " null key.");
         }
@@ -338,7 +340,7 @@ public class ServletBinding extends Binding {
         }
     }
 
-    private void excludeReservedName(String name, String reservedName) {
+    private static void excludeReservedName(String name, String reservedName) {
         if (reservedName.equals(name)) {
             throw new IllegalArgumentException("Can't bind variable to key named '" + name + "'.");
         }

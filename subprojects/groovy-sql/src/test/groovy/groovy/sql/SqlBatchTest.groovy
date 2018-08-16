@@ -18,6 +18,8 @@
  */
 package groovy.sql
 
+import groovy.test.GroovyAssert
+
 import javax.sql.DataSource
 
 import static groovy.sql.SqlTestConstants.*
@@ -119,6 +121,44 @@ class SqlBatchTest extends GroovyTestCase {
         // FINE: Successfully executed batch with 1 command(s)
     }
 
+    void testWithBatchHavingSizeSameSizeAsStatements() {
+        def numRows = sql.rows("SELECT * FROM PERSON").size()
+        assert numRows == 3
+        def myOthers = ['f4':'l4','f5':'l5','f6':'l6','f7':'l7']
+        def result = sql.withBatch(myOthers.size(), "insert into PERSON (id, firstname, lastname) values (?, ?, ?)") { ps ->
+            myOthers.eachWithIndex { k, v, index ->
+                def id = index + numRows + 1
+                ps.addBatch(id, k, v)
+            }
+        }
+        assert result == [1] * myOthers.size()
+        assert sql.rows("SELECT * FROM PERSON").size() == numRows + myOthers.size()
+        // end result the same as if no batching was in place but logging should show:
+        // FINE: Successfully executed batch with 4 command(s)
+    }
+
+    void testWithBatchNothingAddedToBatch() {
+        def numRows = sql.rows("SELECT * FROM PERSON").size()
+        assert numRows == 3
+
+        def result = sql.withBatch { ps ->
+            // Add nothing
+        }
+        assert result == [] as int[]
+    }
+
+    void testWithBatchWithPreparedStatementNothingAddedToBatch() {
+        def numRows = sql.rows("SELECT * FROM PERSON").size()
+        assert numRows == 3
+
+        // If you create a PreparedStatement you have to use it - or else HSQL throws an exception
+        GroovyAssert.shouldFail {
+            sql.withBatch(3, "insert into PERSON (id, firstname, lastname) values (?, ?, ?)") { ps ->
+                // Add nothing - not a good practice at all...
+            }
+        }
+    }
+
     void testWithBatchInsideWithTransaction() {
         def numRows = sql.rows("SELECT * FROM PERSON").size()
         assert numRows == 3
@@ -171,4 +211,38 @@ class SqlBatchTest extends GroovyTestCase {
         // FINE: Successfully executed batch with 1 command(s)
     }
 
+    void testWithBatchClosesStatement() {
+        // withBatch(int, Closure) should close connection even when statement caching is enabled
+        // since it is not cached because there is no sql text to use as the cache key.
+        BatchingStatementWrapper wrapper = null
+        sql.cacheStatements = true
+        sql.withBatch(1) { stmt ->
+            wrapper = (BatchingStatementWrapper)stmt
+            stmt.addBatch("insert into PERSON (id, firstname, lastname) values (999, 'Test', 'Closes')")
+        }
+        assert wrapper.@delegate.isClosed()
+    }
+
+    void testWithBatchClosureClosesOrCachesStatement() {
+        String sqlText = 'insert into PERSON (id, firstname, lastname) values (?, ?, ?)'
+        BatchingPreparedStatementWrapper wrapper = null
+
+        sql.cacheStatements = false
+        sql.withBatch(20, sqlText) { ps ->
+            wrapper = (BatchingPreparedStatementWrapper)ps
+            ps.addBatch(111, 'Test1', 'Closes1')
+            ps.addBatch(222, 'Test2', 'Closes2')
+        }
+        assert wrapper.@delegate.isClosed()
+
+        sql.cacheStatements = true
+        sql.withBatch(20, sqlText) { ps ->
+            wrapper = (BatchingPreparedStatementWrapper)ps
+            ps.addBatch(333, 'Test3', 'Closes3')
+            ps.addBatch(444, 'Test4', 'Closes4')
+        }
+        assert !wrapper.@delegate.isClosed()
+        assert sql.@statementCache.containsKey(sqlText)
+        assert sql.@statementCache[sqlText].is(wrapper.@delegate)
+    }
 }

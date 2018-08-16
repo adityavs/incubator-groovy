@@ -17,17 +17,14 @@
  *  under the License.
  */
 package gls.ch03.s03
+
 /**
  * GLS 3.3:
  * Implementations first recognize Unicode escapes in their input, translating 
  * the ASCII characters backslash and 'u' followed by four hexadecimal digits
  * to the Unicode character with the indicated hexadecimal value, and passing
  * all other characters unchanged.  
- *
- * @author Alan Green
- * @author Jeremy Rayner
  */
-
 class UnicodeEscapes1 extends GroovyTestCase {
 
     void testAllHexDigits() {
@@ -42,11 +39,13 @@ class UnicodeEscapes1 extends GroovyTestCase {
     }
 
     // There can be 1 or more u's after the backslash
+    /*
     void testMultipleUs() {
         assert "\uu0061" == "a"
         assert "\uuu0061" == "a"
         assert "\uuuuu0061" == "a"
     }
+    */
 
     void testOtherVariations() {
         // Capital 'U' not allowed

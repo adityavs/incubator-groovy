@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -56,7 +69,7 @@ include::{projectdir}/src/spec/test/ClosuresSpecTest.groovy[tags=closure_syntax_
 <1> A closure referencing a variable named `item`
 <2> It is possible to explicitly separate closure parameters from code by adding an arrow (`+->+`)
 <3> A closure using an implicit parameter (`it`)
-<4> An alternative version where `it` is this time an explicit parameter
+<4> An alternative version where `it` is an explicit parameter
 <5> In that case it is often better to use an explicit name for the parameter
 <6> A closure accepting two typed parameters
 <7> A closure can contain multiple statements
@@ -174,7 +187,7 @@ include::{projectdir}/src/spec/test/ClosuresSpecTest.groovy[tags=closure_vargs,i
 <1> A closure accepting a variable number of strings as first parameter
 <2> It may be called using any number of arguments *without* having to explicitly wrap them into an array
 <3> The same behavior is directly available if the _args_ parameter is declared as an array
-<4> As long as the *last* parameter is an array of an explicit vargs type
+<4> As long as the *last* parameter is an array or an explicit vargs type
 
 == Delegation strategy
 
@@ -282,14 +295,14 @@ Then by changing the delegate of the closure, you can see that the target object
 include::{projectdir}/src/spec/test/ClosuresSpecTest.groovy[tags=change_delegate_asserts,indent=0]
 ----
 
-At this point, the behavior is not different from having a `variable defined in the lexical scope of the closure:
+At this point, the behavior is not different from having a `target` variable defined in the lexical scope of the closure:
 
 [source,groovy]
 ----
 include::{projectdir}/src/spec/test/ClosuresSpecTest.groovy[tags=delegate_alernative,indent=0]
 ----
 
-However there is are major differences:
+However, there are major differences:
 
 * in the last example, _target_ is a local variable referenced from within the closure
 * the delegate can be used transparently, that is to say without prefixing method calls with `delegate.` as explained

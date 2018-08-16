@@ -18,8 +18,6 @@
  */
 package org.codehaus.groovy.tools.groovydoc;
 
-import antlr.RecognitionException;
-import antlr.TokenStreamException;
 import org.codehaus.groovy.groovydoc.GroovyRootDoc;
 import org.codehaus.groovy.tools.shell.util.Logger;
 
@@ -76,7 +74,7 @@ public class GroovyDocTool {
         }
     }
 
-    public void add(List<String> filenames) throws RecognitionException, TokenStreamException, IOException {
+    public void add(List<String> filenames) throws IOException {
         if (templateEngine != null) {
             // only print out if we are being used for template generation
             log.debug("Loading source files for " + filenames);
@@ -104,7 +102,7 @@ public class GroovyDocTool {
         }
     }
 
-    String getPath(String filename) {
+    static String getPath(String filename) {
         String path = new File(filename).getParent();
         // path length of 1 indicates that probably is 'default package' i.e. "/"
         if (path == null || (path.length() == 1 && !Character.isJavaIdentifierStart(path.charAt(0)))) {
@@ -113,7 +111,7 @@ public class GroovyDocTool {
         return path;
     }
 
-    String getFile(String filename) {
+    static String getFile(String filename) {
         return new File(filename).getName();
     }
 

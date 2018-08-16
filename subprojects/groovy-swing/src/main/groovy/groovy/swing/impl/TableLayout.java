@@ -18,11 +18,8 @@
  */
 package groovy.swing.impl;
 
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-
-import javax.swing.JPanel;
+import javax.swing.*;
+import java.awt.*;
 
 /** 
  * Represents a HTML style table layout
@@ -57,7 +54,7 @@ public class TableLayout extends JPanel {
     }
 
     /**
-     * Creates a new row index for child <tr> tags 
+     * Creates a new row index for child tr tags
      * @return nextRowIndex the row number
      */
     public int nextRowIndex() {

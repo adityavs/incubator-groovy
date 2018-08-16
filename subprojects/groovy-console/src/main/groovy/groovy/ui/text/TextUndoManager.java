@@ -18,13 +18,12 @@
  */
 package groovy.ui.text;
 
-import java.beans.PropertyChangeListener;
-
 import javax.swing.event.SwingPropertyChangeSupport;
 import javax.swing.event.UndoableEditEvent;
 import javax.swing.undo.CompoundEdit;
 import javax.swing.undo.UndoManager;
 import javax.swing.undo.UndoableEdit;
+import java.beans.PropertyChangeListener;
 
 /**
  * To use this, simply drop this as an UndoableEditListener into your document,
@@ -176,7 +175,7 @@ public class TextUndoManager extends UndoManager {
 
     }
 
-    private class StructuredEdit extends CompoundEdit {
+    private static class StructuredEdit extends CompoundEdit {
 
         private long editedTime;
 
@@ -189,7 +188,7 @@ public class TextUndoManager extends UndoManager {
         }
 
         public boolean canUndo() {
-            return edits.size() > 0;
+            return !edits.isEmpty();
         }
 
         protected long editedTime() {

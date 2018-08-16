@@ -159,7 +159,7 @@ public class CovariantReturnTest extends CompilableTestSupport {
 
     void testImplementedInterfacesNotInfluencing() {
         // in GROOVY-3229 some methods from Appendable were not correctly recognized
-        // as already being overriden (PrintWriter<Writer<Appenable)
+        // as already being overridden (PrintWriter<Writer<Appenable)
         shouldCompile """
             class IndentWriter extends java.io.PrintWriter {
                public IndentWriter(Writer w)  { super(w, true) }
@@ -177,6 +177,51 @@ public class CovariantReturnTest extends CompilableTestSupport {
                     return [ 42 ]
                 }
             }
+        """
+    }
+
+    //GROOVY-7495
+    void testCovariantMerhodReturnTypeFromParentInterface() {
+        shouldCompile """
+            interface Item {}
+            interface DerivedItem extends Item {}
+
+            interface Base {
+                Item getItem()
+            }
+            class BaseImpl implements Base {
+                Item getItem() { null }
+            }
+
+            interface First extends Base {
+                DerivedItem getItem()
+            }
+
+            class FirstImpl extends BaseImpl implements First {
+                DerivedItem getItem() { null }
+            }
+
+            interface Second extends First {}
+            class SecondImpl extends FirstImpl implements Second {}
+        """
+        shouldCompile """
+            interface A {
+               B foo()
+            }
+            interface B {}
+            interface A2 extends A {
+               B2 foo()
+            }
+            interface B2 extends B {}
+
+            class AA implements A {
+               BB foo() { return new BB() }
+            }
+            class AA2 extends AA implements A2 {
+               BB2 foo() { return new BB2() }
+            }
+            class BB implements B {}
+            class BB2 extends BB implements B2 {}
         """
     }
 

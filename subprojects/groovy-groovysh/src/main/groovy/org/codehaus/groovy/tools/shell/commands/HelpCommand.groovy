@@ -19,8 +19,8 @@
 package org.codehaus.groovy.tools.shell.commands
 
 import jline.console.completer.Completer
-import org.codehaus.groovy.tools.shell.CommandSupport
 import org.codehaus.groovy.tools.shell.Command
+import org.codehaus.groovy.tools.shell.CommandSupport
 import org.codehaus.groovy.tools.shell.Groovysh
 import org.codehaus.groovy.tools.shell.completion.CommandNameCompleter
 
@@ -43,7 +43,7 @@ class HelpCommand
 
     protected List<Completer> createCompleters() {
         return [
-            new CommandNameCompleter(registry),
+            new CommandNameCompleter(registry, false),
             null
         ]
     }

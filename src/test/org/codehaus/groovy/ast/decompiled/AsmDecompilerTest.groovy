@@ -21,6 +21,7 @@ import junit.framework.TestCase
 import org.codehaus.groovy.ast.AnnotationNode
 import org.codehaus.groovy.ast.ClassHelper
 import org.codehaus.groovy.ast.ClassNode
+import org.codehaus.groovy.ast.decompiled.support.*
 import org.codehaus.groovy.ast.expr.*
 import org.codehaus.groovy.control.ClassNodeResolver
 import org.codehaus.groovy.control.CompilationUnit
@@ -201,8 +202,10 @@ class AsmDecompilerTest extends TestCase {
         assert !anno.isTargetAllowed(AnnotationNode.LOCAL_VARIABLE_TARGET)
     }
 
+    public static enum TestEnum { SOURCE, CLASS, RUNTIME }
+
     void "test enum field"() {
-        def node = decompile(RetentionPolicy.name).plainNodeReference
+        def node = decompile(TestEnum.name).plainNodeReference
         for (s in ['SOURCE', 'CLASS', 'RUNTIME']) {
             def field = node.getDeclaredField(s)
             assert field
@@ -276,12 +279,54 @@ class AsmDecompilerTest extends TestCase {
         assert field.type.toString() == 'V -> java.lang.RuntimeException'
     }
 
+    public static class SomeInnerclass{}
+
     void "test static inner class"() {
-        assert (decompile(Attributes.Name.name).modifiers & Opcodes.ACC_STATIC) != 0
+        assert (decompile(SomeInnerclass.name).modifiers & Opcodes.ACC_STATIC) != 0
+    }
+
+    void "test static inner classes with same name"() {
+        ClassNode cn = decompile(Groovy8632Abstract.Builder.name)
+        assert (cn.modifiers & Opcodes.ACC_STATIC) != 0
+        assert (cn.modifiers & Opcodes.ACC_ABSTRACT) != 0
+
+        cn = decompile(Groovy8632.Builder.name)
+        assert (cn.modifiers & Opcodes.ACC_STATIC) != 0
+        assert (cn.modifiers & Opcodes.ACC_ABSTRACT) == 0
+
+        cn = decompile(Groovy8632Groovy.Builder.name)
+        assert (cn.modifiers & Opcodes.ACC_STATIC) != 0
+        assert (cn.modifiers & Opcodes.ACC_ABSTRACT) == 0
     }
 
     void "test static inner with dollar"() {
         assert (decompile(AsmDecompilerTestData.Inner$WithDollar.name).modifiers & Opcodes.ACC_STATIC) != 0
+    }
+
+    void "test inner classes with same name"() {
+        ClassNode cn = decompile(Groovy8632Abstract.InnerBuilder.name)
+        assert (cn.modifiers & Opcodes.ACC_STATIC) == 0
+        assert (cn.modifiers & Opcodes.ACC_ABSTRACT) != 0
+
+        cn = decompile(Groovy8632.InnerBuilder.name)
+        assert (cn.modifiers & Opcodes.ACC_STATIC) == 0
+        assert (cn.modifiers & Opcodes.ACC_ABSTRACT) == 0
+
+        cn = decompile(Groovy8632Groovy.InnerBuilder.name)
+        assert (cn.modifiers & Opcodes.ACC_STATIC) == 0
+        assert (cn.modifiers & Opcodes.ACC_ABSTRACT) == 0
+    }
+
+    void "test private inner class"() {
+        ClassNode cn = decompile(Groovy8632.InnerPrivate.name)
+        assert (cn.modifiers & Opcodes.ACC_PRIVATE) != 0
+        assert (cn.modifiers & Opcodes.ACC_PUBLIC) == 0
+    }
+
+    void "test protected inner class"() {
+        ClassNode cn = decompile(Groovy8632.InnerProtected.name)
+        assert (cn.modifiers & Opcodes.ACC_PROTECTED) != 0
+        assert (cn.modifiers & Opcodes.ACC_PUBLIC) == 0
     }
 
     void "test non-parameterized generics"() {

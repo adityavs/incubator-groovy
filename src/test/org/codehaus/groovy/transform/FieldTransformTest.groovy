@@ -21,8 +21,7 @@ package org.codehaus.groovy.transform
 import gls.CompilableTestSupport
 
 /**
- * @author Paul King
- * @author C�dric Champeau
+ * Tests for the {@code @Field} transformation
  */
 class FieldTransformTest extends CompilableTestSupport {
 
@@ -224,6 +223,64 @@ class FieldTransformTest extends CompilableTestSupport {
             assert this.@$bar == null
             assert this.@baz == 'baz'
             assert foo + bar + baz == 'foobarbaz'
+        '''
+    }
+
+    void testAnonymousInnerClassReferencesToField() {
+        // GROOVY-8112
+        assertScript '''
+            @groovy.transform.Field
+            StringBuilder logger = new StringBuilder()
+            logger.append('a')
+            ['b'].each {
+                logger.append(it)
+                new Object() {
+                    String toString() {
+                        logger.append('c')
+                        ['d'].each { logger.append(it) }
+                    }
+                }.toString()
+            }
+            Closure c = { logger.append('e') }
+            c()
+            // control: worked previously, make sure we didn't break
+            def method() {
+                logger.append('f')
+                ['g'].each {
+                    logger.append(it)
+                    new Object() {
+                        String toString() {
+                            logger.append('h')
+                        }
+                    }.toString()
+                }
+            }
+            method()
+            assert logger.toString() == 'abcdefgh'
+        '''
+    }
+
+    void testFieldTransformWithFinalField() {
+        // GROOVY-8430
+        assertScript '''
+            import groovy.transform.Field
+
+            @Field final foo = 14
+            @Field final bar = foo * 2
+            @Field baz = foo + bar
+
+            assert foo + bar == 42
+            assert baz == 42
+            def setters = getClass().methods.findAll{ it.name.startsWith('set') }.name
+            assert setters.intersect(['setBar', 'setFoo', 'setBaz']) == ['setBaz']
+        '''
+    }
+
+    void testFieldTransformWithFinalFieldAndOption() {
+        // GROOVY-8430 in conjunction with @Option
+        shouldNotCompile '''
+            import groovy.cli.OptionField
+            @OptionField final String first
         '''
     }
 }

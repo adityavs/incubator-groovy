@@ -122,9 +122,9 @@ class OperatorsTest extends CompilableTestSupport {
     void testBitwiseOperators() {
         // tag::bitwise_op[]
         int a = 0b00101010
-        assert a==42
+        assert a == 42
         int b = 0b00001000
-        assert b==8
+        assert b == 8
         assert (a & a) == a                     // <1>
         assert (a & b) == b                     // <2>
         assert (a | a) == a                     // <3>
@@ -512,7 +512,7 @@ assert function(*args,5,6) == 26
             Long id
             String name
             def asType(Class target) {                                              // <1>
-                if (target==Identifiable) {
+                if (target == Identifiable) {
                     return new Identifiable(name: name)
                 }
                 throw new ClassCastException("User cannot be coerced into $target")
@@ -606,5 +606,47 @@ assert (b1 + 11).size == 15
             assert str2 == str3
             assert str1 == str2
             '''
+    }
+
+    void testBooleanOr() {
+        assertScript '''
+boolean trueValue1 = true, trueValue2 = true, trueValue3 = true
+boolean falseValue1 = false, falseValue2 = false, falseValue3 = false
+
+assert (trueValue1 |= true)
+assert (trueValue2 |= false)
+assert (trueValue3 |= null)
+assert (falseValue1 |= true)
+assert !(falseValue2 |= false)
+assert !(falseValue3 |= null)
+'''
+    }
+
+    void testBooleanAnd() {
+        assertScript '''
+boolean trueValue1 = true, trueValue2 = true, trueValue3 = true
+boolean falseValue1 = false, falseValue2 = false, falseValue3 = false
+
+assert (trueValue1 &= true)
+assert !(trueValue2 &= false)
+assert !(trueValue3 &= null)
+assert !(falseValue1 &= true)
+assert !(falseValue2 &= false)
+assert !(falseValue3 &= null)
+'''
+    }
+
+    void testBooleanXor() {
+        assertScript '''
+boolean trueValue1 = true, trueValue2 = true, trueValue3 = true
+boolean falseValue1 = false, falseValue2 = false, falseValue3 = false
+
+assert !(trueValue1 ^= true)
+assert (trueValue2 ^= false)
+assert (trueValue3 ^= null)
+assert (falseValue1 ^= true)
+assert !(falseValue2 ^= false)
+assert !(falseValue3 ^= null)
+'''
     }
 }

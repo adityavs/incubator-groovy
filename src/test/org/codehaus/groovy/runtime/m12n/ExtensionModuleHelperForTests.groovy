@@ -16,18 +16,17 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-
 package org.codehaus.groovy.runtime.m12n
 
-import org.codehaus.groovy.tools.FileSystemCompiler;
+import org.codehaus.groovy.runtime.DefaultGroovyStaticMethods
 
-public class ExtensionModuleHelperForTests {
+class ExtensionModuleHelperForTests {
     static void doInFork(String code) {
         doInFork("GroovyTestCase", code)
     }
 
     static void doInFork(String baseTestClass, String code) {
-        File baseDir = FileSystemCompiler.createTempDir()
+        File baseDir = DefaultGroovyStaticMethods.createTempDir(null)
         File source = new File(baseDir, 'Temp.groovy')
         source << """import org.codehaus.groovy.runtime.m12n.*
     class TempTest extends $baseTestClass {
@@ -37,41 +36,46 @@ public class ExtensionModuleHelperForTests {
     }
     org.junit.runner.JUnitCore.main('TempTest')
 """
-        def cl = ExtensionModuleHelperForTests.classLoader
-        while (!(cl instanceof URLClassLoader)) {
-            cl = cl.parent
-            if (cl ==null) {
-                throw new RuntimeException("Unable to find class loader")
-            }
-        }
-        Set<String> cp = ((URLClassLoader)cl).URLs.collect{ new File(it.toURI()).absolutePath}
+
+        Set<String> cp = System.getProperty("java.class.path").split(File.pathSeparator) as Set
         cp << baseDir.absolutePath
 
+        boolean jdk9 = false
+        try {
+            jdk9 = new BigDecimal(System.getProperty("java.specification.version")).compareTo(new BigDecimal("9.0")) >= 0
+        } catch (e) {
+            // ignore
+        }
+
         def ant = new AntBuilder()
+        def allowed = [
+                'Picked up JAVA_TOOL_OPTIONS: .*',
+                'Picked up _JAVA_OPTIONS: .*'
+        ]
         try {
             ant.with {
                 taskdef(name:'groovyc', classname:"org.codehaus.groovy.ant.Groovyc")
                 groovyc(srcdir: baseDir.absolutePath, destdir:baseDir.absolutePath, includes:'Temp.groovy', fork:true)
-                java(   classname:'Temp',
-                        fork:'true',
-                        outputproperty: 'out',
-                        errorproperty: 'err',
-                        {
-                            classpath {
-                                cp.each {
-                                    pathelement location: it
-                                }
-                            }
+                java(classname: 'Temp', fork: 'true', outputproperty: 'out', errorproperty: 'err') {
+                    classpath {
+                        cp.each {
+                            pathelement location: it
                         }
-                )
+                    }
+                }
             }
         } finally {
             String out = ant.project.properties.out
             String err = ant.project.properties.err
             baseDir.deleteDir()
-            if (err) {
+            // FIX_JDK9: remove once we have no warnings when running Groovy
+            if (jdk9) {
+                err = err?.replaceAll(/WARNING: .*/, "")?.trim()
+            }
+            if (err && !allowed.any{ err.trim().matches(it) }) {
                 throw new RuntimeException("$err\nClasspath: ${cp.join('\n')}")
-            } else if ( out.contains('FAILURES') || ! out.contains("OK")) {
+            }
+            if (out && (out.contains('FAILURES') || !out.contains("OK"))) {
                 throw new RuntimeException("$out\nClasspath: ${cp.join('\n')}")
             }
         }

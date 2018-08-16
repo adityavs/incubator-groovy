@@ -22,10 +22,17 @@ import groovy.ui.view.Defaults
 import groovy.ui.view.GTKDefaults
 import groovy.ui.view.MacOSXDefaults
 import groovy.ui.view.WindowsDefaults
-import java.awt.datatransfer.DataFlavor
-import java.awt.dnd.*
-import javax.swing.UIManager
+
+import javax.swing.*
 import javax.swing.event.DocumentListener
+import javax.swing.text.DefaultEditorKit
+import java.awt.datatransfer.DataFlavor
+import java.awt.dnd.DnDConstants
+import java.awt.dnd.DropTarget
+import java.awt.dnd.DropTargetDragEvent
+import java.awt.dnd.DropTargetDropEvent
+import java.awt.dnd.DropTargetEvent
+import java.awt.dnd.DropTargetListener
 
 switch (UIManager.getSystemLookAndFeelClassName()) {
     case 'com.sun.java.swing.plaf.windows.WindowsLookAndFeel':
@@ -105,6 +112,12 @@ controller.origDividerSize = origDividerSize
 controller.splitPane = splitPane
 controller.blank = blank
 controller.scrollArea = scrollArea
+controller.selectWordAction = inputArea.getActions().find {
+    DefaultEditorKit.selectWordAction.equals(it.getValue(Action.NAME))
+}
+controller.selectPreviousWordAction = inputArea.getActions().find {
+    DefaultEditorKit.selectionPreviousWordAction.equals(it.getValue(Action.NAME))
+}
 
 // some more UI linkage
 controller.outputArea.addComponentListener(controller)

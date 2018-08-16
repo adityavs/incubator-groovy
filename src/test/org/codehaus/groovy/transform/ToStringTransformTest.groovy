@@ -267,7 +267,7 @@ class ToStringTransformTest extends GroovyShellTestCase {
             }
             new SportsPerson(first: 'John', last: 'Smith', title: 'Mr').toString()
         ''')
-        assert toString == "SportsPerson(title:Mr, golfer:false, adult:true, cyclist:true, full:John Smith, senior:false, born:1975)"
+        assert toString == "SportsPerson(title:Mr, cyclist:true, full:John Smith, golfer:false, senior:false, born:1975, adult:true)"
         // same again but with allProperties=false and with @CompileStatic for test coverage purposes
         toString = evaluate('''
             import groovy.transform.*
@@ -294,7 +294,7 @@ class ToStringTransformTest extends GroovyShellTestCase {
             }
             new SportsPerson(first: 'John', last: 'Smith', title: 'Mr').toString()
         ''')
-        assert toString == "SportsPerson(title:Mr, golfer:false, adult:true, cyclist:true)"
+        assert toString == "SportsPerson(title:Mr, adult:true, cyclist:true, golfer:false)"
     }
 
     void testSelfReference() {
@@ -434,6 +434,60 @@ class ToStringTransformTest extends GroovyShellTestCase {
             }
             assert new Person(first: 'John', last: 'Smith').toString() == 'Person(John, Smith)'
         '''
+    }
+
+    void testInternalFieldsAreIncludedIfRequested() {
+        evaluate '''
+            import groovy.transform.*
+
+            @ToString(allNames = true)
+            class HasInternalProperty {
+                String $
+            }
+            assert new HasInternalProperty($: "foo").toString() == 'HasInternalProperty(foo)'
+        '''
+    }
+
+    void testIncludesWithSuper_Groovy8011() {
+        def toString = evaluate("""
+            import groovy.transform.*
+
+            @ToString
+            class Foo {
+                String baz = 'baz'
+            }
+
+            @ToString(includes='super,num,blah', includeNames=true)
+            class Bar extends Foo {
+                String blah = 'blah'
+                int num = 42
+            }
+
+            new Bar().toString()
+        """)
+
+        assert toString.contains('super:Foo(baz)')
+    }
+
+    void testIncludesOrdering_Groovy8014() {
+        assertScript """
+            import groovy.transform.*
+
+            @ToString
+            class Foo {
+                String baz = 'baz'
+            }
+
+            @ToString(includes='a,c,super,b,d', includeFields=true, includeSuper=true)
+            class Bar extends Foo {
+                int a = 1
+                int b = 2
+                private int c = 3
+                public int d = 4
+            }
+
+            assert new Bar().toString() == 'Bar(1, 3, Foo(baz), 2, 4)'
+        """
     }
 
 }

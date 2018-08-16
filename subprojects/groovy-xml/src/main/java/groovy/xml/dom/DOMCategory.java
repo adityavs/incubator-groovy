@@ -355,7 +355,10 @@ public class DOMCategory {
 
     public static Node replaceNode(NodesHolder self, Closure c) {
         if (self.getLength() <= 0 || self.getLength() > 1) {
-            throw new GroovyRuntimeException("replaceNode() can only be used to replace a single element.");
+            throw new GroovyRuntimeException(
+                    "replaceNode() can only be used to replace a single element, " +
+                    "but was applied to " + self.getLength() + " elements."
+            );
         }
         return replaceNode(self.item(0), c);
     }
@@ -536,7 +539,7 @@ public class DOMCategory {
     }
 
     private static final class NodeListsHolder implements NodeList {
-        private List<NodeList> nodeLists;
+        private final List<NodeList> nodeLists;
 
         private NodeListsHolder(List<NodeList> nodeLists) {
             this.nodeLists = nodeLists;
@@ -567,7 +570,7 @@ public class DOMCategory {
     }
 
     private static final class NodesHolder implements NodeList {
-        private List<Node> nodes;
+        private final List<Node> nodes;
 
         private NodesHolder(List<Node> nodes) {
             this.nodes = nodes;

@@ -18,6 +18,9 @@
  */
 package groovy
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
 /**
  * Test case for the eachObject method on a file containing
  * zero, one or more objects (object stream).  Also test cases
@@ -40,14 +43,11 @@ class GroovyClosureMethodsTest extends GroovyTestCase {
             oos.writeObject(it)
         }
 
-        println("Contents of file with multiple objects: " + file)
         int c = 0
         file.eachObject {
-            print "${it} "
             c++
         }
         assert list.size() == c
-        println ""
         //ensure to remove the created file
         file.delete()
     }
@@ -57,14 +57,11 @@ class GroovyClosureMethodsTest extends GroovyTestCase {
         def oos = new ObjectOutputStream(new FileOutputStream(file))
         oos.writeObject(file)
 
-        println("Contents of file with one object: " + file)
         int c = 0
         file.eachObject {
-            print "${it} "
             c++
         }
         assert c == 1
-        println ""
         //ensure to remove the created file
         file.delete()
     }
@@ -73,14 +70,12 @@ class GroovyClosureMethodsTest extends GroovyTestCase {
         def file = new File(filename)
         def oos = new ObjectOutputStream(new FileOutputStream(file))
 
-        println("Contents of empty file: " + file)
         int c = 0
         file.eachObject {
             print "${it} "
             c++
         }
         assert c == 0
-        println ""
         //ensure to remove the created file
         file.delete()
     }
@@ -92,14 +87,11 @@ class GroovyClosureMethodsTest extends GroovyTestCase {
         oos.writeObject("foo")
         oos.writeObject(null)
 
-        println("Contents of null file: " + file)
         int c = 0
         file.eachObject {
-            print "${it} "
             c++
         }
         assert c == 3
-        println ""
         //ensure to remove the created file
         file.delete()
     }
@@ -107,39 +99,33 @@ class GroovyClosureMethodsTest extends GroovyTestCase {
     void testEachDir() {
         def dir = new File(dirname_source)
 
-        println("Directories in: " + dir)
         int c = 0
         dir.eachDir {
-            print "${it} "
             c++
         }
-        println ""
         assert c > 0
     }
 
     void testEachFileMatch() {
         def file = new File(dirname_source)
 
-        print "Files with the text Groovy: "
-        file.eachFileMatch(~"^Groovy.*") {
-            print "${it} "
-        }
-        println ""
-
-        print "Files with the text Closure: "
-        file.eachFileMatch(~"^Closure.*") {
-            print "${it} "
-        }
-        println ""
-
-        print "This file is here: "
         int c = 0
+        file.eachFileMatch(~"^Groovy.*") {
+            c++
+        }
+        assert c > 0
+
+        c = 0
+        file.eachFileMatch(~"^Closure.*") {
+            c++
+        }
+        assert c > 0
+
+        c = 0
         file.eachFileMatch(~"^GroovyClosureMethodsTest.groovy") {
-            print "${it} "
             c++
         }
         assert c == 1
-        println ""
     }
 
     void testEachFileOnNonExistingDir() {
@@ -161,15 +147,13 @@ class GroovyClosureMethodsTest extends GroovyTestCase {
     }
 
     void testRunAfter() {
-        boolean modifiedByRunAfter = false
+        CountDownLatch latch = new CountDownLatch(1)
         new Timer().runAfter(50) {
-            modifiedByRunAfter = true
+            latch.countDown()
         }
-        assert modifiedByRunAfter == false
-        for(int i = 0; !modifiedByRunAfter && i < 10; i++) {
-           Thread.sleep 100
-        }
-        assert modifiedByRunAfter
+        assert latch.getCount() == 1
+        latch.await(2000L, TimeUnit.MILLISECONDS)
+        assert latch.getCount() == 0
     }
 
     void testSplitEachLine() {

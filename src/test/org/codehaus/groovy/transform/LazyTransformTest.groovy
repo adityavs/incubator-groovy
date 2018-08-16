@@ -22,8 +22,7 @@ import java.lang.ref.SoftReference
 import java.lang.reflect.Modifier
 
 /**
- * @author Alex Tkachman
- * @author Paul King
+ * Tests for the {@code @Lazy} transform.
  */
 class LazyTransformTest extends GroovyShellTestCase {
 
@@ -149,6 +148,20 @@ class LazyTransformTest extends GroovyShellTestCase {
         assert Modifier.isVolatile(res.class.getDeclaredField('$val2').modifiers)
     }
 
+    void testAbstractClassShouldNotCompile() {
+        def message = shouldFail {
+            new GroovyShell().run('''
+                abstract class Foo {}
+                class Demo {
+                    @Lazy Foo foo
+                }
+
+                new Demo().foo
+            ''', 'dummyFileName', [])
+        }
+        assert message.contains("You cannot lazily initialize 'foo' from the abstract class 'Foo'")
+    }
+
     void testSoft() {
         def res = evaluate("""
               class X {
@@ -166,5 +179,45 @@ class LazyTransformTest extends GroovyShellTestCase {
         res.op ()
         assertTrue res.@'$list' instanceof SoftReference
         assertEquals([1,2,3], res.list)
+    }
+
+    void testNestedLazyCalls() {
+        def res = evaluate("""
+            class X {
+              @Lazy def smallSet = [1, 2, 3]
+              @Lazy def biggerSet = (smallSet + [4, 5, 6])
+            }
+            new X().biggerSet
+        """)
+        assertEquals([1,2,3,4,5,6], res)
+    }
+
+    void testNestedStaticLazyCalls() {
+        def res = evaluate("""
+            class X {
+              @Lazy static final SMALL_SET = [10, 20, 30]
+              @Lazy static final BIGGER_SET = (SMALL_SET + [40, 50, 60])
+            }
+            X.BIGGER_SET
+        """)
+        assertEquals([10,20,30,40,50,60], res)
+    }
+
+    // GROOVY-7940
+    void testGeneratesIsAndGetAccessorsForBooleanPrimitives() {
+        assertScript '''
+            class Super {
+                boolean aBoolean = true
+            }
+
+            class Testing extends Super {
+                @Lazy
+                boolean aBoolean = {-> false }()
+            }
+
+            assert !new Testing().isaBoolean()
+            assert !new Testing().getaBoolean()
+            assert !new Testing().aBoolean
+        '''
     }
 }

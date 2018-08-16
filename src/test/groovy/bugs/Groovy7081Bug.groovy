@@ -17,10 +17,7 @@
  *  under the License.
  */
 
-
 package groovy.bugs
-
-import org.codehaus.groovy.control.MultipleCompilationErrorsException
 
 class Groovy7081Bug extends GroovyTestCase {
     void testShouldSeeThatMethodIsNotImplemented() {
@@ -34,7 +31,7 @@ class Groovy7081Bug extends GroovyTestCase {
             new Foo().name
             '''
 
-        assert msg.contains("Method 'getName' is already defined in class 'Foo'")
+        assert msg.contains("The method 'java.lang.String getName()' is already defined in class 'Foo'")
     }
 
     void testShouldSeeConflictInTypeSignature() {

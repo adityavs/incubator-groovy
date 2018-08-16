@@ -24,10 +24,74 @@ import static org.codehaus.groovy.control.CompilerConfiguration.DEFAULT as confi
  */
 class MethodPatternsTest extends AbstractBytecodeTestCase {
 
+    void testUnoptimizedIfWithNestedOptimizedLoop(){
+        if (config.indyEnabled) return;
+        // in this example the if block contains statements that will not be optimized
+        // but we still want to optimize the for loops, which can.
+        // The test will check there is a optimized bytecode sequence for the loops.
+        assert compile('''
+
+            long sum = 0;
+            double m = 1;
+
+            if( true ) {
+
+                System.err.println( "START");
+                long t0 = System.currentTimeMillis();
+
+                for( int j=0; j<1000; j++ ) {
+                    for( int i=0; i<100_000; i++ ) {
+                       sum = sum + i;
+                       m = m*i;
+                    }
+                }
+
+                long t1 = System.currentTimeMillis();
+                System.err.println( "END - " + (t1-t0)+"ms");
+            }
+
+            System.err.println( "Done: "+sum+" "+m );
+        ''').hasSequence([
+                // for (int j=0; j<1000; j++) start and condition
+                'ICONST_0',
+                'SIPUSH 1000',
+                'IF_ICMPGE',
+                'ICONST_1',
+                // for (int i=0; i<100_000; i++) start and condition
+                'ICONST_0',
+                'LDC 100000',
+                'IF_ICMPGE',
+                'ICONST_1',
+                'GOTO',
+                'ICONST_0',
+                'IFEQ',
+                // sum = sum + i
+                'LLOAD',
+                'ILOAD',
+                'I2L',
+                'LADD',
+                // m = m * i
+                'DLOAD',
+                'ILOAD',
+                'I2D',
+                'DMUL',
+                // for (int i=0; i<100_000; i++) increment
+                'ILOAD',
+                'ICONST_1',
+                'IADD',
+                'ISTORE',
+                // for (int j=0; j<1000; j++) increment
+                'ILOAD',
+                'ICONST_1',
+                'IADD',
+                'ISTORE'
+        ])
+    }
+
     // make a test for native compilation of the ackerman function
     // and ensure the nested call is optimized
     void testAckerman() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile(method: 'A', '''
             int A(int x, int y) {
                 if (x == 0) return y+1
@@ -77,7 +141,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testForLoopSettingArray() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile('''
             int n = 10
             int[] x = new int[n]
@@ -115,7 +179,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testArrayIncrement() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile('''
             int n = 10
             int[] x = new int[n]
@@ -165,7 +229,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testForLoopSettingArrayWithOperatorUsedInAssignmentAndArrayRHS() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile('''
             int n = 10
             int[] x = new int[n]
@@ -205,7 +269,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testRightShiftUnsignedWithLongArgument() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile(method: "hashCode", '''
             class X{
                 long _tagReservationDate
@@ -235,7 +299,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testObjectArraySet() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile(method: "foo", '''
             class X {
                 void foo() {
@@ -250,7 +314,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testBooleanArraySet() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile(method: "foo", '''
             class X{
                 void foo() {
@@ -265,7 +329,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testArray() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         def methods = [
             "short"     :   [1, "sArraySet ([SIS)V", "sArrayGet ([SI)S"],
             "int"       :   [1, "intArraySet ([III)V", "intArrayGet ([II)I"],
@@ -322,7 +386,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testFib() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile(method: "fib", """
             int fib(int i) {
                 i < 2 ? 1 : fib(i - 2) + fib(i - 1)
@@ -362,7 +426,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testNoBoxUnbox() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         assert compile(method: "someCode", """
             public boolean someCall() {
                 return true;
@@ -381,7 +445,7 @@ class MethodPatternsTest extends AbstractBytecodeTestCase {
     }
 
     void testDiv() {
-        if (config.optimizationOptions.indy) return;
+        if (config.indyEnabled) return;
         def types = [
             "byte", "short", "int", "long", "double", "float"]
         types.each {type ->

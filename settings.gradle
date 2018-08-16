@@ -18,25 +18,35 @@
  */
 def subprojects = ['groovy-ant',
         'groovy-bsf',
+        'groovy-cli-commons',
+        'groovy-cli-picocli',
         'groovy-console',
+        'groovy-datetime',
+        'groovy-dateutil',
         'groovy-docgenerator',
         'groovy-groovydoc',
         'groovy-groovysh',
+        'groovy-jaxb',
         'groovy-jmx',
         'groovy-json',
         'groovy-jsr223',
+        'groovy-nio',
         'groovy-servlet',
         'groovy-sql',
         'groovy-swing',
         'groovy-templates',
         'groovy-test',
+        'groovy-test-junit5',
         'groovy-testng',
-        'groovy-xml']
+        'groovy-xml',
+        'groovy-macro',
+        'performance'
+]
 
-if(JavaVersion.current().isJava7Compatible()) {
-    subprojects << 'groovy-nio'
+if (hasProperty('stressTests')) {
+    subprojects << 'stress'
 }
- 
+
 include(subprojects as String[])
         
 rootProject.children.each { prj ->

@@ -20,27 +20,7 @@ package org.codehaus.groovy.ant;
 
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyResourceLoader;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.StringTokenizer;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
+import org.apache.groovy.io.StringBuilderWriter;
 import org.apache.tools.ant.AntClassLoader;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.DirectoryScanner;
@@ -61,6 +41,25 @@ import org.codehaus.groovy.tools.ErrorReporter;
 import org.codehaus.groovy.tools.FileSystemCompiler;
 import org.codehaus.groovy.tools.RootLoader;
 import org.codehaus.groovy.tools.javac.JavaAwareCompilationUnit;
+import picocli.CommandLine;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.StringTokenizer;
 
 /**
  * Compiles Groovy source files using Ant.
@@ -72,8 +71,8 @@ import org.codehaus.groovy.tools.javac.JavaAwareCompilationUnit;
  *   &lt;property name="groovy.home" value="/Path/To/Groovy"/&gt;
  *   &lt;property name="groovy.version" value="X.Y.Z"/&gt;
  *   &lt;path id="groovy.classpath"&gt;
- *     &lt;fileset dir="${groovy.home}/embeddable"&gt;
- *       &lt;include name="groovy-all-${groovy.version}.jar" /&gt;
+ *     &lt;fileset dir="${groovy.home}/lib"&gt;
+ *       &lt;include name="groovy-*${groovy.version}.jar" /&gt;
  *     &lt;/fileset&gt;
  *   &lt;/path&gt;
  *   &lt;taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc" classpathref="groovy.classpath"/&gt;
@@ -136,8 +135,8 @@ import org.codehaus.groovy.tools.javac.JavaAwareCompilationUnit;
  *   &lt;property name="groovy.version" value="X.Y.Z"/&gt;
  *
  *   &lt;path id="groovy.classpath"&gt;
- *     &lt;fileset dir="${groovy.home}/embeddable"&gt;
- *       &lt;include name="groovy-all-${groovy.version}.jar" /&gt;
+ *     &lt;fileset dir="${groovy.home}/lib"&gt;
+ *       &lt;include name="groovy-*${groovy.version}.jar" /&gt;
  *     &lt;/fileset&gt;
  *   &lt;/path&gt;
  *
@@ -162,15 +161,9 @@ import org.codehaus.groovy.tools.javac.JavaAwareCompilationUnit;
  * &lt;/project&gt;
  * </pre>
  * <p>
- * Based heavily on the Javac implementation in Ant.
+ * Based on the implementation of the Javac task in Apache Ant.
  * <p>
  * Can also be used from {@link groovy.util.AntBuilder} to allow the build file to be scripted in Groovy.
- *
- * @author <a href="mailto:james@coredevelopers.net">James Strachan</a>
- * @author Hein Meling
- * @author <a href="mailto:russel.winder@concertant.com">Russel Winder</a>
- * @author Danno Ferrin
- * @author Paul King
  */
 public class Groovyc extends MatchingTask {
     private static final URL[] EMPTY_URL_ARRAY = new URL[0];
@@ -206,7 +199,7 @@ public class Groovyc extends MatchingTask {
     private Javac javac;
     private boolean jointCompilation;
 
-    private List<File> temporaryFiles = new ArrayList<File>(2);
+    private final List<File> temporaryFiles = new ArrayList<File>(2);
     private File stubDir;
     private boolean keepStubs;
     private boolean forceLookupUnnamedFiles;
@@ -215,7 +208,6 @@ public class Groovyc extends MatchingTask {
     private String configscript;
 
     private Set<String> scriptExtensions = new LinkedHashSet<String>();
-
 
     /**
      * If true, generates metadata for reflection on method parameter names (jdk8+ only).  Defaults to false.
@@ -292,20 +284,25 @@ public class Groovyc extends MatchingTask {
     }
 
     /**
-     * Sets the bytecode compatibility mode
+     * Sets the bytecode compatibility level.
+     * The parameter can take one of the values in {@link CompilerConfiguration#ALLOWED_JDKS}.
      *
-     * @param version the bytecode compatibility mode
+     * @param version the bytecode compatibility level
      */
     public void setTargetBytecode(String version) {
-        if (CompilerConfiguration.PRE_JDK5.equals(version) || CompilerConfiguration.POST_JDK5.equals(version)) {
-            this.targetBytecode = version;
+
+        for (String allowedJdk : CompilerConfiguration.ALLOWED_JDKS) {
+            if (allowedJdk.equals(version)) {
+                this.targetBytecode = version;
+                break;
+            }
         }
     }
 
     /**
-     * Retrieves the compiler bytecode compatibility mode.
+     * Retrieves the compiler bytecode compatibility level.
      *
-     * @return bytecode compatibility mode. Can be either <tt>1.5</tt> or <tt>1.4</tt>.
+     * @return bytecode compatibility level. Can be one of the values in {@link CompilerConfiguration#ALLOWED_JDKS}.
      */
     public String getTargetBytecode() {
         return this.targetBytecode;
@@ -666,7 +663,7 @@ public class Groovyc extends MatchingTask {
      * Get the result of the groovyc task (success or failure).
      *
      * @return true if compilation succeeded, or
-     *         was not necessary, false if the compilation failed.
+     * was not necessary, false if the compilation failed.
      */
     public boolean getTaskSuccess() {
         return taskSuccess;
@@ -786,7 +783,7 @@ public class Groovyc extends MatchingTask {
 
     /**
      * Set the forceLookupUnnamedFiles flag. Defaults to false.
-     *
+     * <p>
      * The Groovyc Ant task is frequently used in the context of a build system
      * that knows the complete list of source files to be compiled. In such a
      * context, it is wasteful for the Groovy compiler to go searching the
@@ -1029,7 +1026,7 @@ public class Groovyc extends MatchingTask {
             commandLineList.add(javaHome + separator + "bin" + separator + "java");
         }
         commandLineList.add("-classpath");
-        commandLineList.add(classpath.toString());
+        commandLineList.add(getClasspathRelative(classpath));
 
         final String fileEncodingProp = System.getProperty("file.encoding");
         if ((fileEncodingProp != null) && !fileEncodingProp.equals("")) {
@@ -1057,6 +1054,22 @@ public class Groovyc extends MatchingTask {
         }
     }
 
+    private String getClasspathRelative(Path classpath) {
+        String baseDir = getProject().getBaseDir().getAbsolutePath();
+        StringBuilder sb = new StringBuilder();
+        for (String next : classpath.list()) {
+            if (sb.length() > 0) {
+                sb.append(File.pathSeparatorChar);
+            }
+            if (next.startsWith(baseDir)) {
+                sb.append(".").append(next.substring(baseDir.length()));
+            } else {
+                sb.append(next);
+            }
+        }
+        return sb.toString();
+    }
+
     /**
      * Add "groovyc" parameters to the commandLineList, based on the ant configuration.
      *
@@ -1065,8 +1078,10 @@ public class Groovyc extends MatchingTask {
      * @param classpath
      */
     private void doNormalCommandLineList(List<String> commandLineList, List<String> jointOptions, Path classpath) {
-        commandLineList.add("--classpath");
-        commandLineList.add(classpath.toString());
+        if (!fork) {
+            commandLineList.add("--classpath");
+            commandLineList.add(classpath.toString());
+        }
         if (jointCompilation) {
             commandLineList.add("-j");
             commandLineList.addAll(jointOptions);
@@ -1133,18 +1148,12 @@ public class Groovyc extends MatchingTask {
     }
 
     private String[] makeCommandLine(List<String> commandLineList) {
-        final String[] commandLine = new String[commandLineList.size()];
-        for (int i = 0; i < commandLine.length; ++i) {
-            commandLine[i] = commandLineList.get(i);
-        }
-        log.verbose("Compilation arguments:");
-        log.verbose(DefaultGroovyMethods.join(commandLine, "\n"));
-        return commandLine;
+        log.verbose("Compilation arguments:\n" + DefaultGroovyMethods.join((Iterable)commandLineList, "\n"));
+        return commandLineList.toArray(new String[0]);
     }
 
     private void runForked(String[] commandLine) {
-        // use the main method in FileSystemCompiler
-        final Execute executor = new Execute(); // new LogStreamHandler ( attributes , Project.MSG_INFO , Project.MSG_WARN ) ) ;
+        final Execute executor = new Execute();
         executor.setAntRun(getProject());
         executor.setWorkingDirectory(getProject().getBaseDir());
         executor.setCommandline(commandLine);
@@ -1170,14 +1179,10 @@ public class Groovyc extends MatchingTask {
     private void runCompiler(String[] commandLine) {
         // hand crank it so we can add our own compiler configuration
         try {
-            Options options = FileSystemCompiler.createCompilationOptions();
-
-            CommandLineParser cliParser = new DefaultParser();
-
-            CommandLine cli;
-            cli = cliParser.parse(options, commandLine);
-
-            configuration = FileSystemCompiler.generateCompilerConfigurationFromOptions(cli);
+            FileSystemCompiler.CompilationOptions options = new FileSystemCompiler.CompilationOptions();
+            CommandLine parser = FileSystemCompiler.configureParser(options);
+            parser.parseArgs(commandLine);
+            configuration = options.toCompilerConfiguration();
             configuration.setScriptExtensions(getScriptExtensions());
             String tmpExtension = getScriptExtension();
             if (tmpExtension.startsWith("*."))
@@ -1185,17 +1190,19 @@ public class Groovyc extends MatchingTask {
             configuration.setDefaultScriptExtension(tmpExtension);
 
             // Load the file name list
-            String[] filenames = FileSystemCompiler.generateFileNamesFromOptions(cli);
+            String[] filenames = options.generateFileNames();
             boolean fileNameErrors = filenames == null;
 
-            fileNameErrors = fileNameErrors && !FileSystemCompiler.validateFiles(filenames);
+            fileNameErrors = fileNameErrors || !FileSystemCompiler.validateFiles(filenames);
 
             if (targetBytecode != null) {
                 configuration.setTargetBytecode(targetBytecode);
             }
 
             if (!fileNameErrors) {
-                FileSystemCompiler.doCompilation(configuration, makeCompileUnit(), filenames, forceLookupUnnamedFiles);
+                try (GroovyClassLoader loader = buildClassLoaderFor()) {
+                    FileSystemCompiler.doCompilation(configuration, makeCompileUnit(loader), filenames, forceLookupUnnamedFiles);
+                }
             }
 
         } catch (Exception re) {
@@ -1204,7 +1211,7 @@ public class Groovyc extends MatchingTask {
                 // unwrap to the real exception
                 t = re.getCause();
             }
-            StringWriter writer = new StringWriter();
+            Writer writer = new StringBuilderWriter();
             new ErrorReporter(t, false).write(new PrintWriter(writer));
             String message = writer.toString();
 
@@ -1259,7 +1266,15 @@ public class Groovyc extends MatchingTask {
         }
     }
 
+    /**
+     * @deprecated This method is not in use anymore. Use {@link Groovyc#makeCompileUnit(GroovyClassLoader)} instead.
+     */
+    @Deprecated
     protected CompilationUnit makeCompileUnit() {
+        return makeCompileUnit(buildClassLoaderFor());
+    }
+
+    protected CompilationUnit makeCompileUnit(GroovyClassLoader loader) {
         Map<String, Object> options = configuration.getJointCompilationOptions();
         if (options != null) {
             if (keepStubs) {
@@ -1276,9 +1291,9 @@ public class Groovyc extends MatchingTask {
                     throw new BuildException(ioe);
                 }
             }
-            return new JavaAwareCompilationUnit(configuration, buildClassLoaderFor());
+            return new JavaAwareCompilationUnit(configuration, loader);
         } else {
-            return new CompilationUnit(configuration, null, buildClassLoaderFor());
+            return new CompilationUnit(configuration, null, loader);
         }
     }
 
@@ -1287,9 +1302,16 @@ public class Groovyc extends MatchingTask {
         if (!fork && !getIncludeantruntime()) {
             throw new IllegalArgumentException("The includeAntRuntime=false option is not compatible with fork=false");
         }
-        ClassLoader parent = getIncludeantruntime()
-                ? getClass().getClassLoader()
-                : new AntClassLoader(new RootLoader(EMPTY_URL_ARRAY, null), getProject(), getClasspath());
+        final ClassLoader parent =
+                AccessController.doPrivileged(
+                        new PrivilegedAction<ClassLoader>() {
+                            @Override
+                            public ClassLoader run() {
+                                return getIncludeantruntime()
+                                        ? getClass().getClassLoader()
+                                        : new AntClassLoader(new RootLoader(EMPTY_URL_ARRAY, null), getProject(), getClasspath());
+                            }
+                        });
         if (parent instanceof AntClassLoader) {
             AntClassLoader antLoader = (AntClassLoader) parent;
             String[] pathElm = antLoader.getClasspath().split(File.pathSeparator);
@@ -1313,17 +1335,23 @@ public class Groovyc extends MatchingTask {
                  * may not exist in the classpath yet
                  */
                 if (!found && new File(cpEntry).exists()) {
-                	try {
-                		antLoader.addPathElement(cpEntry);
-                	}
-                	catch(BuildException e) {
-                		log.warn("The classpath entry " + cpEntry + " is not a valid Java resource");
-                	}
+                    try {
+                        antLoader.addPathElement(cpEntry);
+                    } catch (BuildException e) {
+                        log.warn("The classpath entry " + cpEntry + " is not a valid Java resource");
+                    }
                 }
             }
         }
 
-        GroovyClassLoader loader = new GroovyClassLoader(parent, configuration);
+        GroovyClassLoader loader =
+                AccessController.doPrivileged(
+                        new PrivilegedAction<GroovyClassLoader>() {
+                            @Override
+                            public GroovyClassLoader run() {
+                                return new GroovyClassLoader(parent, configuration);
+                            }
+                        });
         if (!forceLookupUnnamedFiles) {
             // in normal case we don't need to do script lookups
             loader.setResourceLoader(new GroovyResourceLoader() {
@@ -1346,11 +1374,14 @@ public class Groovyc extends MatchingTask {
 
             Path classpath = getClasspath() != null ? getClasspath() : new Path(getProject());
             final String[] pe = classpath.list();
-            final GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader());
-            for (String file : pe) {
-                loader.addClasspath(file);
+            try (GroovyClassLoader loader = new GroovyClassLoader(getClass().getClassLoader())) {
+                for (String file : pe) {
+                    loader.addClasspath(file);
+                }
+                scriptExtensions.addAll(SourceExtensionHandler.getRegisteredExtensions(loader));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-            scriptExtensions.addAll(SourceExtensionHandler.getRegisteredExtensions(loader));
         }
     }
 }

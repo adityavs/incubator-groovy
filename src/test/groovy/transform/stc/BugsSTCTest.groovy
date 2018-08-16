@@ -20,8 +20,6 @@ package groovy.transform.stc
 
 /**
  * Unit tests for static type checking : bug fixes.
- *
- * @author Cedric Champeau
  */
 class BugsSTCTest extends StaticTypeCheckingTestCase {
     // GROOVY-5456
@@ -79,11 +77,27 @@ class BugsSTCTest extends StaticTypeCheckingTestCase {
             def bar() { foo { it - 2 } }
         ''', 'Cannot find matching method java.lang.Object#minus(int)'
     }
-    void testShouldNotAllowMinusBynUntypedVariable() {
+    void testShouldNotAllowMinusByUntypedVariable() {
         shouldFailWithMessages '''
             def foo(Closure cls) {}
             def bar() { foo { 2 - it } }
         ''', 'Cannot find matching method int#minus(java.lang.Object)'
+    }
+
+    // GROOVY-7929
+    void testShouldDetectInvalidMethodUseWithinTraitWithCompileStaticAndSelfType() {
+        shouldFailWithMessages '''
+            class C1 {
+                def c1() { }
+            }
+            @groovy.transform.CompileStatic
+            @groovy.transform.SelfType(C1)
+            trait TT {
+                def foo() {
+                    c2()
+                }
+            }
+        ''', 'Cannot find matching method <UnionType:C1+TT>#c2'
     }
 
     void testGroovy5444() {
@@ -132,6 +146,17 @@ class BugsSTCTest extends StaticTypeCheckingTestCase {
         })
         List getList() {
         }
+        '''
+    }
+
+    void testGroovy7477NullGenericsType() {
+        assertScript '''
+        class L<E> extends ArrayList<E> {
+            boolean removeIf(Comparator<? super E> filter) { }
+        }
+        L<String> items = ['foo', 'bar'] as L<String>
+        items.removeIf({a, b -> 1} as Comparator<?>)
+        assert items
         '''
     }
 
@@ -417,22 +442,6 @@ class BugsSTCTest extends StaticTypeCheckingTestCase {
             }
         '''
     }
-    void testFlowTypingErrorWithIfElseAndNoInitialInferredType() {
-        assertScript '''
-            def o
-            boolean b = true
-            if (b) {
-                o = 1
-            } else {
-                @ASTTest(phase=INSTRUCTION_SELECTION, value={
-                    assert node.getNodeMetaData(INFERRED_TYPE) == OBJECT_TYPE
-                })
-                def o2 = o
-                o2 = 'foo'
-                println (o2.toString())
-            }
-        '''
-    }
 
     // GROOVY-6104
     void testShouldResolveConstantFromInterfaceImplementedInSuperClass() {
@@ -637,6 +646,30 @@ Printer
         '''
     }
 
+    void testAmbiguousMethodResolutionGroovy7710NoArgsOverloaded() {
+        shouldFailWithMessages '''
+            Arrays.sort()
+        ''', 'Reference to method is ambiguous. Cannot choose between '
+    }
+
+    void testAmbiguousMethodResolutionGroovy7711NoArgsCovariantOverride() {
+        assertScript '''
+            class A {}
+            class B {
+                Object m(Object[] args) {
+                    new Object()
+                }
+            }
+            class C extends B {
+                A m(Object[] args) {
+                    new A()
+                }
+            }
+            C c = new C()
+            A a = c.m()
+        '''
+    }
+
     // GROOVY-6911
     void testShouldNotThrowArrayIndexOfOutBoundsException() {
         assertScript '''
@@ -647,7 +680,129 @@ Printer
             }
 
             Map<String, Object> m = new C().bar()
-            List tmp = (List) m.get("some_key_here")     // <---  actually groovy crashes here!!
+            List tmp = (List) m.get("some_key_here")
         '''
     }
+
+    // GROOVY-7416
+    void testMethodsFromInterfacesOfSuperClassesShouldBeVisible() {
+        assertScript '''
+            interface SomeInterface {
+                void someInterfaceMethod()
+            }
+
+            abstract class AbstractSuperClass implements SomeInterface {}
+
+            abstract class AbstractSubClass extends AbstractSuperClass {
+                void someMethod() {
+                    someInterfaceMethod()
+                }
+            }
+
+            assert AbstractSubClass.name == 'AbstractSubClass'
+        '''
+        assertScript '''
+            interface SomeInterface { void foo() }
+            interface SomeOtherInterface { void bar() }
+            interface AnotherInterface extends SomeInterface, SomeOtherInterface {}
+
+            abstract class Parent implements AnotherInterface {}
+
+            abstract class Child extends Parent {
+                void baz() { foo(); bar() }
+            }
+
+            assert Child.name == 'Child'
+        '''
+    }
+
+    // GROOVY-7315
+    void testNamedArgConstructorSupportWithInnerClassesAndCS() {
+        assertScript '''
+            import groovy.transform.*
+            @ToString
+            class X {
+                int a
+                static X makeX() { new X(a:1) }
+                Y makeY() {
+                    new Y(b:2)
+                }
+                @ToString
+                private class Y {
+                    int b
+                    @ToString
+                    private class Z {
+                        int c
+                    }
+                    Z makeZ() {
+                        new Z(c:3)
+                    }
+                }
+            }
+            assert X.makeX().toString() == 'X(1)'
+            assert X.makeX().makeY().toString() == 'X$Y(2)'
+            assert X.makeX().makeY().makeZ().toString() == 'X$Y$Z(3)'
+        '''
+    }
+
+    // GROOVY-8255 and GROOVY-8382
+    void testTargetTypingEmptyCollectionLiterals() {
+        assertScript '''
+            class Foo {
+                List<List<String>> items = [['x']]
+                def bar() {
+                    List<String> result = []
+                    List<String> selections = items.size() ? (items.get(0) ?: []) : items.size() > 1 ? items.get(1) : []
+                    for (String selection: selections) {
+                        result << selection
+                    }
+                    result
+                }
+            }
+            assert new Foo().bar() == ['x']
+        '''
+        assertScript '''
+            class Foo {
+                def bar() {
+                    def items = [x:1]
+                    Map<String, Integer> empty = [:]
+                    Map<String, Integer> first = items ?: [:]
+                    Map<String, Integer> second = first.isEmpty() ? [:] : [y:2]
+                    [first, second]
+                }
+            }
+            assert new Foo().bar() == [[x:1], [y:2]]
+        '''
+        assertScript '''
+            import groovy.transform.*
+            @ToString(includeFields=true)
+            class Foo {
+                List<String> propWithGen = ['propWithGen'] ?: []
+                List propNoGen = ['propNoGen'] ?: []
+                private Map<String, Integer> fieldGen = [fieldGen:42] ?: [:]
+                def bar() {
+                    this.propNoGen = ['notDecl'] ?: [] // not applicable here
+                    List<String> localVar = ['localVar'] ?: []
+                    localVar
+                }
+            }
+            def foo = new Foo()
+            assert foo.bar() == ['localVar']
+            assert foo.toString() == 'Foo([propWithGen], [notDecl], [fieldGen:42])'
+        '''
+    }
+
+    //GROOVY-8590
+    void testNestedMethodCallInferredTypeInReturnStmt() {
+        assertScript '''
+            class Source {
+                Object getValue() { '32' }
+            }
+            int m(Source src) {
+                return Integer.parseInt((String) src.getValue())
+            }
+            assert m(new Source()) == 32
+        '''
+    }
+
 }

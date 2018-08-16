@@ -20,7 +20,7 @@
 @if "%DEBUG%" == "" @echo off
 @rem ##########################################################################
 @rem                                                                         ##
-@rem  Groovy JVM Bootstrap for Windowz                                       ##
+@rem  Groovy JVM Bootstrap for Windows                                       ##
 @rem                                                                         ##
 @rem ##########################################################################
 
@@ -131,7 +131,7 @@ shift
 :init
 @rem get name of script to launch with full path
 set GROOVY_SCRIPT_NAME=%~f1
-@rem Get command-line arguments, handling Windowz variants
+@rem Get command-line arguments, handling Windows variants
 if not "%OS%" == "Windows_NT" goto win9xME_args
 if "%eval[2+2]" == "4" goto 4NT_args
 
@@ -150,7 +150,7 @@ if not defined _ARGS goto execute
 set _ARGS=%_ARGS:-=-d%
 set _ARGS=%_ARGS:"=-q%
 set _ARGS=%_ARGS:?=-n%
-rem Windowz will try to match * with files so we escape it here
+rem Windows will try to match * with files so we escape it here
 rem but it is also a meta char for env var string substitution
 rem so it can't be first char here, hack just for common cases.
 rem If in doubt use a space or bracket before * if using -e.
@@ -177,8 +177,8 @@ for /f "tokens=1,*" %%i in (%_ARGS%) do call :get_arg "%%i" "%%j"
 goto process_arg
 
 :get_arg
-rem remove quotes around first arg
-for %%i in (%1) do set _ARG=%_ARG% %%~i
+rem remove quotes around first arg and don't expand wildcards
+for /f %%i in (%1) do set _ARG=%_ARG% %%~i
 rem set the remaining args
 set _ARGS=%2
 rem remove the leading space we'll add the first time
@@ -265,6 +265,15 @@ set GROOVY_OPTS=%GROOVY_OPTS% -Dgroovy.home="%GROOVY_HOME%"
 if not "%TOOLS_JAR%" == "" set GROOVY_OPTS=%GROOVY_OPTS% -Dtools.jar="%TOOLS_JAR%"
 set GROOVY_OPTS=%GROOVY_OPTS% -Dgroovy.starter.conf="%STARTER_CONF%"
 set GROOVY_OPTS=%GROOVY_OPTS% -Dscript.name="%GROOVY_SCRIPT_NAME%"
+
+for /f "tokens=3" %%g in ('%JAVA_EXE% -version 2^>^&1 ^| findstr /i "version"') do (
+  SET JAVA_VERSION=%%g
+)
+for /f "useback tokens=*" %%a in ('%JAVA_VERSION%') do set JAVA_VERSION=%%~a
+set JAVA_VERSION=%JAVA_VERSION:~0,5%
+set ADD_MODULES_OPT=--add-modules
+if "%JAVA_VERSION%" gtr "1.8.0" set JAVA_OPTS=%JAVA_OPTS% -Dgroovy.jaxb=jaxb
+if "%JAVA_VERSION%" gtr "1.8.0" if "%GROOVY_TURN_OFF_JAVA_WARNINGS%" == "true"                 set JAVA_OPTS=%JAVA_OPTS% --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.annotation=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.module=ALL-UNNAMED --add-opens=java.base/java.lang.ref=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.net.spi=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.nio.channels=ALL-UNNAMED --add-opens=java.base/java.nio.channels.spi=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.nio.charset.spi=ALL-UNNAMED --add-opens=java.base/java.nio.file=ALL-UNNAMED --add-opens=java.base/java.nio.file.attribute=ALL-UNNAMED --add-opens=java.base/java.nio.file.spi=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/java.security.acl=ALL-UNNAMED --add-opens=java.base/java.security.cert=ALL-UNNAMED --add-opens=java.base/java.security.interfaces=ALL-UNNAMED --add-opens=java.base/java.security.spec=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.text.spi=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --add-opens=java.base/java.time.chrono=ALL-UNNAMED --add-opens=java.base/java.time.format=ALL-UNNAMED --add-opens=java.base/java.time.temporal=ALL-UNNAMED --add-opens=java.base/java.time.zone=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED --add-opens=java.base/java.util.function=ALL-UNNAMED --add-opens=java.base/java.util.jar=ALL-UNNAMED --add-opens=java.base/java.util.regex=ALL-UNNAMED --add-opens=java.base/java.util.spi=ALL-UNNAMED --add-opens=java.base/java.util.stream=ALL-UNNAMED --add-opens=java.base/java.util.zip=ALL-UNNAMED --add-opens=java.datatransfer/java.awt.datatransfer=ALL-UNNAMED --add-opens=java.desktop/java.applet=ALL-UNNAMED --add-opens=java.desktop/java.awt=ALL-UNNAMED --add-opens=java.desktop/java.awt.color=ALL-UNNAMED --add-opens=java.desktop/java.awt.desktop=ALL-UNNAMED --add-opens=java.desktop/java.awt.dnd=ALL-UNNAMED --add-opens=java.desktop/java.awt.dnd.peer=ALL-UNNAMED --add-opens=java.desktop/java.awt.event=ALL-UNNAMED --add-opens=java.desktop/java.awt.font=ALL-UNNAMED --add-opens=java.desktop/java.awt.geom=ALL-UNNAMED --add-opens=java.desktop/java.awt.im=ALL-UNNAMED --add-opens=java.desktop/java.awt.im.spi=ALL-UNNAMED --add-opens=java.desktop/java.awt.image=ALL-UNNAMED --add-opens=java.desktop/java.awt.image.renderable=ALL-UNNAMED --add-opens=java.desktop/java.awt.peer=ALL-UNNAMED --add-opens=java.desktop/java.awt.print=ALL-UNNAMED --add-opens=java.desktop/java.beans=ALL-UNNAMED --add-opens=java.desktop/java.beans.beancontext=ALL-UNNAMED --add-opens=java.instrument/java.lang.instrument=ALL-UNNAMED --add-opens=java.logging/java.util.logging=ALL-UNNAMED --add-opens=java.management/java.lang.management=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.rmi/java.rmi=ALL-UNNAMED --add-opens=java.rmi/java.rmi.activation=ALL-UNNAMED --add-opens=java.rmi/java.rmi.dgc=ALL-UNNAMED --add-opens=java.rmi/java.rmi.registry=ALL-UNNAMED --add-opens=java.rmi/java.rmi.server=ALL-UNNAMED --add-opens=java.sql/java.sql=ALL-UNNAMED  --add-opens=java.desktop/javax.swing=ALL-UNNAMED --add-opens=java.desktop/javax.swing.border=ALL-UNNAMED --add-opens=java.desktop/javax.swing.text=ALL-UNNAMED --add-opens=java.desktop/javax.swing.text.html=ALL-UNNAMED --add-opens=java.desktop/sun.awt.windows=ALL-UNNAMED --add-opens=java.desktop/sun.awt=ALL-UNNAMED --add-opens=java.desktop/sun.java2d=ALL-UNNAMED --add-opens=java.desktop/sun.font=ALL-UNNAMED
 
 if exist "%USERPROFILE%/.groovy/postinit.bat" call "%USERPROFILE%/.groovy/postinit.bat"
 

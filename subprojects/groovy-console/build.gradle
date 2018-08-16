@@ -20,6 +20,7 @@ evaluationDependsOn(':groovy-swing')
 
 dependencies {
     compile rootProject
+    compile project(':groovy-cli-picocli')
     compile project(':groovy-swing')
     compile project(':groovy-templates')
     testCompile project(':groovy-test')
@@ -27,6 +28,8 @@ dependencies {
 }
 
 task console(type: JavaExec, dependsOn:classes) {
+    jvmArgs += ["-Dgroovy.attach.groovydoc=true"]
+
     main = 'groovy.ui.Console'
     classpath = sourceSets.main.runtimeClasspath
 }

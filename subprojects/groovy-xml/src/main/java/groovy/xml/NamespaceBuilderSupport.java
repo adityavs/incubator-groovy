@@ -20,7 +20,6 @@ package groovy.xml;
 
 import groovy.util.BuilderSupport;
 import groovy.util.NodeBuilder;
-
 import org.codehaus.groovy.runtime.InvokerHelper;
 
 import java.util.Collections;
@@ -140,7 +139,7 @@ public class NamespaceBuilderSupport extends BuilderSupport {
         return super.invokeMethod(methodName, args);
     }
     
-    private Map findAttributes(Object args) {
+    private static Map findAttributes(Object args) {
         List list = InvokerHelper.asList(args);
         for (Object o : list) {
         	if (o instanceof Map) {

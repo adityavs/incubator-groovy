@@ -177,7 +177,7 @@ import groovy.transform.TypeCheckingMode//import org.codehaus.groovy.classgen.as
             class Bar {
                 def foo() {new Foo()}
             }
-        ''', 'Cannot call private constructor'
+        ''', '[Static type checking] - Cannot find matching method Foo#<init>()'
     }
 
     // GROOVY-7063
@@ -214,6 +214,66 @@ import groovy.transform.TypeCheckingMode//import org.codehaus.groovy.classgen.as
             }
             def ext = new Ext()
             assert ext.doSomething() == 1
+        '''
+    }
+
+    //GROOVY-7863
+    void testDoublyNestedPrivateMethodAccess() {
+        assertScript '''
+            class A {
+                private int bar() { 123 }
+
+                class B {
+
+                    int testInner() { new C().barInner() }
+
+                    class C {
+                        int barInner() { bar() }
+                    }
+                }
+
+                int test() {
+                    new B().testInner()
+                }
+            }
+            assert new A().test() == 123
+        '''
+    }
+
+    //GROOVY-7862
+    void testProtectedCallFromInnerClassInSeparatePackage() {
+        assertScript '''
+            import org.codehaus.groovy.classgen.asm.sc.MethodCallsStaticCompilationTest.Base
+            class SubBase extends Base {
+                class Inner {
+                    int test() {
+                        foo()
+                    }
+                }
+
+                int innerTest() {
+                    new Inner().test()
+                }
+            }
+            assert new SubBase().innerTest() == 123
+        '''
+    }
+
+    //GROOVY-8509
+    void testProtectedCallFromClassInSamePackage() {
+        assertScript '''
+            package org.foo
+
+            class A {
+                protected A() {}
+                protected int m() { 123 }
+            }
+            class B {
+                int test() {
+                    new A().m()
+                }
+            }
+            assert new B().test() == 123
         '''
     }
 

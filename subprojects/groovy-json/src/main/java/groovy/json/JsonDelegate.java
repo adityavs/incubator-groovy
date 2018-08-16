@@ -21,7 +21,12 @@ package groovy.json;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObjectSupport;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Utility class used as delegate of closures representing JSON objects.
@@ -32,7 +37,7 @@ import java.util.*;
  */
 public class JsonDelegate extends GroovyObjectSupport {
 
-    private Map<String, Object> content = new LinkedHashMap<String, Object>();
+    private final Map<String, Object> content = new LinkedHashMap<String, Object>();
 
     /**
      * Intercepts calls for setting a key and value for a JSON object
@@ -47,9 +52,10 @@ public class JsonDelegate extends GroovyObjectSupport {
 
             if (arr.length == 1) {
                 val = arr[0];
-            } else if (arr.length == 2 && arr[0] instanceof Collection && arr[1] instanceof Closure) {
+            } else if (isIterableOrArrayAndClosure(arr)) {
                 Closure<?> closure = (Closure<?>) arr[1];
-                Iterator<?> iterator = ((Collection) arr[0]).iterator();
+                Iterator<?> iterator = (arr[0] instanceof Iterable) ?
+                        ((Iterable) arr[0]).iterator() : Arrays.asList((Object[])arr[0]).iterator();
                 List<Object> list = new ArrayList<Object>();
                 while (iterator.hasNext()) {
                     list.add(curryDelegateAndGetContent(closure, iterator.next()));
@@ -62,6 +68,13 @@ public class JsonDelegate extends GroovyObjectSupport {
         content.put(name, val);
 
         return val;
+    }
+
+    private static boolean isIterableOrArrayAndClosure(Object[] args) {
+        if (args.length != 2 || !(args[1] instanceof Closure)) {
+            return false;
+        }
+        return ((args[0] instanceof Iterable) || (args[0] != null && args[0].getClass().isArray()));
     }
 
     /**

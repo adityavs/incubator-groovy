@@ -524,7 +524,7 @@ assert MyEnum.X.bar == 123 && MyEnum.Y.bar == 0
             @groovy.transform.CompileStatic
             class StringProvider implements Provider<String> {}
             def c = new StringProvider()
-            assert c.get('foo') == 'foo\'
+            assert c.get('foo') == 'foo'
         '''
     }
 
@@ -1344,7 +1344,8 @@ class Person implements ListTrait<String> {
 }
 def p = new Person()
 p.foo()
-assert p.get(0) == 'bar\''''
+assert p.get(0) == 'bar'
+'''
     }
 
     void testAnnotationShouldBeCarriedOver() {
@@ -2258,6 +2259,22 @@ d.foo()
         assert err.contains("class 'C' implements trait 'B' but does not implement self type interface 'java.io.Serializable'")
     }
 
+    void testClassDoesNotImplementSelfTypeDefinedInInheritedTrait() {
+        def err = shouldFail '''
+            import groovy.transform.SelfType
+
+            interface Self { def bar() }
+            @SelfType(Self)
+            trait Trait {
+                def foo() { bar() }
+            }
+            interface Middle extends Trait { }
+            class Child implements Middle { }
+            new Child().foo()
+        '''
+        assert err.contains("class 'Child' implements trait 'Trait' but does not implement self type interface 'Self'")
+    }
+
     void testClassDoesNotImplementSelfTypeUsingAbstractClass() {
         def err = shouldFail '''
         import groovy.transform.SelfType
@@ -2407,10 +2424,10 @@ assert c.b() == 2
                 String version
             }
             def module = configure(Module) {
-                name = 'test\'
-                version = '1.0\'
+                name = 'test'
+                version = '1.0'
             }
-            assert module.value == 'test-1.0\'
+            assert module.value == 'test-1.0'
         '''
 
         assertScript '''
@@ -2439,6 +2456,154 @@ assert c.b() == 2
 
             def sc = new Foo(title: 'some title')
             assert 'some title' == sc.title
+        '''
+    }
+
+    //GROOVY-8281
+    void testFinalFieldsDependency() {
+        assertScript '''
+            trait MyTrait {
+                private final String foo = 'foo'
+                private final String foobar = foo.toUpperCase() + 'bar'
+                int foobarSize() { foobar.size() }
+            }
+
+            class Baz implements MyTrait {}
+
+            assert new Baz().foobarSize() == 6
+        '''
+    }
+
+    //GROOVY-8282
+    void testBareNamedArgumentPrivateMethodCall() {
+        assertScript '''
+            trait BugReproduction {
+                def foo() {
+                    bar(a: 1)
+                }
+                private String bar(Map args) {
+                    args.collect{ k, v -> "$k$v" }.join()
+                }
+            }
+
+            class Main implements BugReproduction {}
+
+            assert new Main().foo() == 'a1'
+        '''
+    }
+
+    //GROOVY-8730
+    void testAbstractMethodsNotNeededInHelperClass() {
+        assertScript '''
+            import static groovy.test.GroovyAssert.shouldFail
+
+            trait Foo { abstract bar() }
+
+            // appears in interface as expected
+            assert Foo.getMethod("bar", [] as Class[])
+
+            // shouldn't appear in trait helper
+            shouldFail(NoSuchMethodException) {
+                // first and only inner class is the trait helper
+                // fragile if current implementation changes drastically
+                Foo.classes[0].getMethod("bar", [Foo] as Class[])
+            }
+        '''
+    }
+
+    //GROOVY-8731
+    void testStaticMethodsIgnoredWhenExistingInstanceMethodsFound() {
+        assertScript '''
+            trait StaticFooBarBaz {
+                static int foo() { 100 }
+                static int baz() { 200 }
+                static int bar() { 300 }
+            }
+
+            trait InstanceBar {
+                int bar() { -10 }
+            }
+
+            class FooBarBaz implements StaticFooBarBaz, InstanceBar {
+                int baz() { -20 }
+            }
+
+            assert FooBarBaz.foo() == 100
+            new FooBarBaz().with {
+                assert bar() == -10
+                assert baz() == -20
+            }
+        '''
+    }
+
+    //GROOVY-6716
+    void testAnonymousInnerClassStyleTraitUsage() {
+        assertScript '''
+            interface Foo { def foo() }
+            def f = new Foo() { def foo() { 42 } }
+            assert f.foo() == 42
+
+            abstract class Baz { abstract baz() }
+            def bz = new Baz() { def baz() { 42 } }
+            assert bz.baz() == 42
+
+            trait Bar { def bar() { 42 } }
+            def b = new Bar() {}
+            assert b.bar() == 42
+        '''
+    }
+
+    //GROOVY-8722
+    void testFinalModifierSupport() {
+        assertScript '''
+            import static java.lang.reflect.Modifier.isFinal
+
+            trait Foo {
+                final int bar() { 2 }
+                final int baz() { 4 }
+            }
+
+            trait Foo2 {
+                int baz() { 6 }
+            }
+
+            class FooFoo2 implements Foo, Foo2 { }
+
+            class Foo2Foo implements Foo2, Foo {
+                int bar() { 8 }
+            }
+
+            def isFinal(Class k, String methodName) {
+                isFinal(k.getMethod(methodName, [] as Class[]).modifiers)
+            }
+
+            new Foo2Foo().with {
+                assert bar() == 8
+                assert baz() == 4
+                assert !isFinal(Foo2Foo, 'bar')
+                assert isFinal(Foo2Foo, 'baz')
+            }
+
+            new FooFoo2().with {
+                assert bar() == 2
+                assert baz() == 6
+                assert isFinal(FooFoo2, 'bar')
+                assert !isFinal(FooFoo2, 'baz')
+            }
+        '''
+        assertScript '''
+            trait Startable {
+                final int start() { doStart() * 2 }
+                abstract int doStart()
+            }
+
+            abstract class Base implements Startable { }
+
+            class Application extends Base {
+                int doStart() { 21 }
+            }
+
+            assert new Application().start() == 42
         '''
     }
 

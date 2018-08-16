@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -40,14 +53,18 @@ The Groovy Console supports several options to control classpath and other featu
 [source,groovy]
 -----------------------------------------------------------------
 ./bin/groovyConsole --help
-usage: groovyConsole [options] [filename]
- -classpath         Specify where to find the class files - must be first
-                    argument
- -cp,--classpath    Aliases for '-classpath'
- -h,--help          Display this help message
- -pa,--parameters   Generate metadata for reflection on method parameter
-                    names (jdk8+ only)
- -V,--version       Display the version
+Usage: groovyConsole [options] [filename]
+The Groovy Swing Console allows a user to enter and run Groovy scripts.
+      --configscript=PARAM   A script for tweaking the compiler configuration options
+      -cp, -classpath, --classpath
+                             Specify where to find the class files - must be first
+                               argument
+  -D, --define=<name=value>  Define a system property
+  -h, --help                 Display this help message
+  -i, --indy                 Enable InvokeDynamic (Indy) compilation for scripts
+      -pa, --parameters      Generate metadata for reflection on method parameter
+                               names (jdk8+ only)
+  -V, --version              Display the version
 -----------------------------------------------------------------
 
 [[GroovyConsole-RunningScripts]]
@@ -124,6 +141,8 @@ being run by adding a new JAR or a directory to the classpath from the
 `Script` menu
 * Error hyperlinking from the output area when a compilation error is
 expected or when an exception is thrown
+* You can enable InvokeDynamic (Indy) compilation mode by selecting
+`Enable Indy Compilation` from the `Script` menu
 
 [[GroovyConsole-EmbeddingtheConsole]]
 == Embedding the Console

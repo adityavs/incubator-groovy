@@ -18,7 +18,7 @@
  */
 package objectorientation
 
-class MethodsTests extends GroovyTestCase {
+class MethodsTest extends GroovyTestCase {
 
     void testMethodDefinition() {
         assertScript '''
@@ -59,7 +59,7 @@ class MethodsTests extends GroovyTestCase {
             // end::varargs_example[]
         '''
     }
-    
+
     void testVarargsArrayNotation() {
         assertScript '''
             // tag::varargs_array_notation[]
@@ -70,7 +70,7 @@ class MethodsTests extends GroovyTestCase {
             // end::varargs_array_notation[]
         '''
     }
-    
+
     void testVarargsNullParameter() {
         assertScript '''
             // tag::varargs_null_parameter[]
@@ -79,7 +79,7 @@ class MethodsTests extends GroovyTestCase {
             // end::varargs_null_parameter[]
         '''
     }
-    
+
     void testVarargsArrayParameter() {
         assertScript '''
             // tag::varargs_array_parameter[]
@@ -89,7 +89,7 @@ class MethodsTests extends GroovyTestCase {
             // end::varargs_array_parameter[]
         '''
     }
-    
+
     void testVarargsMethodOverloading() {
         assertScript '''
             // tag::varargs_method_overloading[]
@@ -99,6 +99,36 @@ class MethodsTests extends GroovyTestCase {
             assert foo(1) == 2
             assert foo(1, 2) == 1
             // end::varargs_method_overloading[]
+        '''
+    }
+
+    void testIdiomaticMethodDeclaration() {
+        assertScript '''
+            import static groovy.test.GroovyAssert.shouldFail
+            // tag::idiomatic_method_declaration[]
+            def badRead() {
+                new File('doesNotExist.txt').text
+            }
+
+            shouldFail(FileNotFoundException) {
+                badRead()
+            }
+            // end::idiomatic_method_declaration[]
+        '''
+    }
+
+    void testMethodDeclarationWithCheckedException() {
+        assertScript '''
+            import static groovy.test.GroovyAssert.shouldFail
+            // tag::checked_method_declaration[]
+            def badRead() throws FileNotFoundException {
+                new File('doesNotExist.txt').text
+            }
+
+            shouldFail(FileNotFoundException) {
+                badRead()
+            }
+            // end::checked_method_declaration[]
         '''
     }
 

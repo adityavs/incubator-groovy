@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -125,22 +138,34 @@ The {gdk} also contains methods allowing you to easily remove elements from a li
 include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=list_gdk3,indent=0]
 ----------------------------------------------------------------------------
 
-It is also possible to remove an element by referring to its index, in which case the list is mutated:
+It is also possible to remove an element by passing its index to the `remove` method, in which case the list is mutated:
 
 [source,groovy]
 ----------------------------------------------------------------------------
-include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=list_gdk4,indent=0]
+include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=list_gdk_remove_index,indent=0]
 ----------------------------------------------------------------------------
 
 In case you only want to remove the first element having the same value in a list, instead of removing all
-elements, you call call the `remove` method:
+elements, you can call the `remove` method passing the value:
 
 [source,groovy]
 ----------------------------------------------------------------------------
 include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=list_gdk5,indent=0]
 ----------------------------------------------------------------------------
 
-And removing all the elements in a list can be done by calling the `clear` method:
+As you can see, there are two `remove` methods available.  One that takes an integer and removes an element
+by its index, and another that will remove the first element that matches the passed value.  So what should we 
+do when we have a list of integers?  In this case, you may wish to use `removeAt` to remove an element by its
+index, and `removeElement` to remove the first element that matches a value.
+
+[source,groovy]
+----------------------------------------------------------------------------
+include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=list_gdk4,indent=0]
+----------------------------------------------------------------------------
+
+Of course, `removeAt` and `removeElement` will work with lists of any type.
+
+Additionally, removing all the elements in a list can be done by calling the `clear` method:
 
 [source,groovy]
 ----------------------------------------------------------------------------
@@ -418,12 +443,17 @@ include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=s
 
 It is worth noting that negative indices are allowed, to extract more easily from the end of a collection:
 
+[source,groovy]
+---------------------------------
+include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=subscript_4,indent=0]
+---------------------------------
+
 You can use negative indices to count from the end of the List, array,
 String etc.
 
 [source,groovy]
 --------------------------------
-include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=subscript_4,indent=0]
+include::{projectdir}/src/spec/test/gdk/WorkingWithCollectionsTest.groovy[tags=subscript_4a,indent=0]
 --------------------------------
 
 Eventually, if you use a backwards range (the starting index is greater than

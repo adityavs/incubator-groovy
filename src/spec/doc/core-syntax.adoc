@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -354,7 +367,7 @@ include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=gstring_2,indent=0]
 ----
 
 [NOTE]
-Not only expressions are actually allowed in between the `${}` placeholder. Statements are also allowed, but a statement's value is just `null`.
+Not only are expressions allowed in between the `${}` placeholder, but so are statements. However, a statement's value is just `null`.
 So if several statements are inserted in that placeholder, the last one should somehow return a meaningful value to be inserted. 
 For instance, +"The sum of 1 and 2 is equal to ${def a = 1; def b = 2; a + b}"+ is supported and works as expected but a good practice is usually to stick to simple expressions inside GString placeholders.
 
@@ -403,7 +416,7 @@ include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=closure_in_gstring_1,
 In either case, both placeholders are embedded closures.
 
 In appearance, it looks like a more verbose way of defining expressions to be interpolated,
-but closure have an interesting advantage over mere expressions: lazy evaluation.
+but closures have an interesting advantage over mere expressions: lazy evaluation.
 
 Let's consider the following sample:
 
@@ -518,6 +531,8 @@ That's why the following assert would actually not compile as it would look like
 include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=slashy_5,indent=0]
 ----
 
+NOTE: As slashy strings were mostly designed to make regexp easier so a few things that are errors in GStrings like `$()` will work with slashy strings.
+
 === Dollar slashy string
 
 Dollar slashy strings are multiline GStrings delimited with an opening `$/` and and a closing `/$`.
@@ -542,13 +557,13 @@ include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=dollar_slashy_1,inden
 |Escape character
 
 |Single quoted
-|`\'...'`
+|`'...'`
 |icon:check-empty[]
 |icon:check-empty[]
 |`\`
 
 |Triple single quoted
-|`\'''...\'''`
+|`'''...'''`
 |icon:check-empty[]
 |icon:check[]
 |`\`
@@ -635,9 +650,11 @@ include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=wide_int_negative,ind
 
 ==== Alternative non-base 10 representations
 
+Numbers can also be represented in binary, octal, hexadecimal and decimal bases.
+
 ===== Binary literal
 
-In Java 6 and before, as well as in Groovy, numbers could be represented in decimal, octal and hexadecimal bases, and with Java 7 and Groovy 2, you can use a binary notation with the `0b` prefix:
+Binary numbers start with a `0b` prefix:
 
 [source,groovy]
 ----
@@ -702,7 +719,7 @@ include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=underscore_in_number_
 
 === Number type suffixes
 
-We can force a number (including binary, octals and hexadecimals) to have a specific type by giving a suffix (see table bellow), either uppercase or lowercase.
+We can force a number (including binary, octals and hexadecimals) to have a specific type by giving a suffix (see table below), either uppercase or lowercase.
 
 [cols="1,2" options="header"]
 |====
@@ -745,6 +762,7 @@ Division and power binary operations aside (covered below),
 * binary operations between `byte`, `char`, `short` and `int` result in `int`
 * binary operations involving `long` with `byte`, `char`, `short` and `int` result in `long`
 * binary operations involving `BigInteger` and any other integral type result in `BigInteger`
+* binary operations involving `BigDecimal` with `byte`, `char`, `short`, `int` and `BigInteger` result in `BigDecimal`
 * binary operations between `float`, `double` and `BigDecimal` result in `double`
 * binary operations between two `BigDecimal` result in `BigDecimal`
 
@@ -772,7 +790,7 @@ The following table summarizes those rules:
 | BigInteger
 | double
 | double
-| double
+| BigDecimal
 
 | *char*
 | 
@@ -783,7 +801,7 @@ The following table summarizes those rules:
 | BigInteger
 | double
 | double
-| double
+| BigDecimal
 
 | *short*
 | 
@@ -794,7 +812,7 @@ The following table summarizes those rules:
 | BigInteger
 | double
 | double
-| double
+| BigDecimal
 
 | *int*
 | 
@@ -805,7 +823,7 @@ The following table summarizes those rules:
 | BigInteger
 | double
 | double
-| double
+| BigDecimal
 
 | *long*
 | 
@@ -816,7 +834,7 @@ The following table summarizes those rules:
 | BigInteger
 | double
 | double
-| double
+| BigDecimal
 
 | *BigInteger*
 | 
@@ -827,7 +845,7 @@ The following table summarizes those rules:
 | BigInteger
 | double
 | double
-| double
+| BigDecimal
 
 | *float*
 | 
@@ -864,7 +882,7 @@ The following table summarizes those rules:
 |====
 
 [NOTE]
-Thanks Groovy's operator overloading, the usual arithmetic operators work as well with `BigInteger` and `BigDecimal`,
+Thanks to Groovy's operator overloading, the usual arithmetic operators work as well with `BigInteger` and `BigDecimal`,
 unlike in Java where you have to use explicit methods for operating on those numbers.
 
 [[integer_division]]
@@ -929,7 +947,7 @@ include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=variable_store_boolea
 `true` and `false` are the only two primitive boolean values.
 But more complex boolean expressions can be represented using <<_bitwise_and_logical_operators,logical operators>>.
 
-In addition, Groovy has <<_the_groovy_truth,special rules>> (often referred to as _Groovy Truth_)
+In addition, Groovy has <<core-semantics.adoc#Groovy-Truth,special rules>> (often referred to as _Groovy Truth_)
 for coercing non-boolean objects to a boolean value.
 
 == Lists
@@ -1072,9 +1090,9 @@ But consider the case you want to pass a variable in lieu of the key, to have th
 ----
 include::{projectdir}/src/spec/test/SyntaxTest.groovy[tags=variable_key_1,indent=0]
 ----
-<1> The `key` associated with the `\'Guillaume'` name will actually be the `"key"` string, not the value associated with the `key` variable
-<2> The map doesn't contain the `\'name'` key
-<3> Instead, the map contains a `\'key'` key
+<1> The `key` associated with the `'Guillaume'` name will actually be the `"key"` string, not the value associated with the `key` variable
+<2> The map doesn't contain the `'name'` key
+<3> Instead, the map contains a `'key'` key
 
 [NOTE]
 You can also pass quoted strings as well as keys: +["name": "Guillaume"]+.

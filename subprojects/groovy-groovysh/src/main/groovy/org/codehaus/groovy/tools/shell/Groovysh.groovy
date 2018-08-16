@@ -32,9 +32,14 @@ import org.codehaus.groovy.runtime.InvokerHelper
 import org.codehaus.groovy.runtime.StackTraceUtils
 import org.codehaus.groovy.tools.shell.commands.LoadCommand
 import org.codehaus.groovy.tools.shell.commands.RecordCommand
-import org.codehaus.groovy.tools.shell.util.*
+import org.codehaus.groovy.tools.shell.util.CurlyCountingGroovyLexer
+import org.codehaus.groovy.tools.shell.util.DefaultCommandsRegistrar
+import org.codehaus.groovy.tools.shell.util.MessageSource
 import org.codehaus.groovy.tools.shell.util.PackageHelper
+import org.codehaus.groovy.tools.shell.util.PackageHelperImpl
+import org.codehaus.groovy.tools.shell.util.Preferences
 import org.codehaus.groovy.tools.shell.util.ScriptVariableAnalyzer
+import org.codehaus.groovy.tools.shell.util.XmlCommandRegistrar
 import org.fusesource.jansi.AnsiRenderer
 
 import java.util.regex.Pattern
@@ -62,6 +67,9 @@ class Groovysh extends Shell {
     public static final String INTERPRETER_MODE_PREFERENCE_KEY = 'interpreterMode'
     public static final String AUTOINDENT_PREFERENCE_KEY = 'autoindent'
     public static final String COLORS_PREFERENCE_KEY = 'colors'
+    public static final String SANITIZE_PREFERENCE_KEY = 'sanitizeStackTrace'
+    public static final String SHOW_LAST_RESULT_PREFERENCE_KEY = 'showLastResult'
+
     // after how many prefix characters we start displaying all metaclass methods
     public static final String METACLASS_COMPLETION_PREFIX_LENGTH_PREFERENCE_KEY = 'meta-completion-prefix-length'
 
@@ -72,6 +80,7 @@ class Groovysh extends Shell {
 
     final Interpreter interp
 
+    // individual imports are stored without leading 'import ' or trailing ';'
     final List<String> imports = []
 
     int indentSize = 2
@@ -87,19 +96,7 @@ class Groovysh extends Shell {
     PackageHelper packageHelper
 
     Groovysh(final ClassLoader classLoader, final Binding binding, final IO io, final Closure registrar) {
-        super(io)
-
-        assert classLoader
-        assert binding
-        assert registrar
-
-        parser = new Parser()
-
-        interp = new Interpreter(classLoader, binding)
-
-        registrar.call(this)
-
-        this.packageHelper = new PackageHelperImpl(classLoader)
+        this(classLoader, binding, io, registrar, null)
     }
 
     Groovysh(final ClassLoader classLoader, final Binding binding, final IO io, final Closure registrar, CompilerConfiguration configuration) {
@@ -198,13 +195,13 @@ class Groovysh extends Shell {
                     displayBuffer(current)
                 }
 
-                if (!Boolean.valueOf(Preferences.get(INTERPRETER_MODE_PREFERENCE_KEY, 'false')) || isTypeOrMethodDeclaration(current)) {
+                if (!Boolean.valueOf(getPreference(INTERPRETER_MODE_PREFERENCE_KEY, 'false')) || isTypeOrMethodDeclaration(current)) {
                     // Evaluate the current buffer w/imports and dummy statement
                     List buff = [importsSpec] + [ 'true' ] + current
                     setLastResult(result = interp.evaluate(buff))
                 } else {
                     // Evaluate Buffer wrapped with code storing bounded vars
-                    result = evaluateWithStoredBoundVars(current)
+                    result = evaluateWithStoredBoundVars(importsSpec, current)
                 }
 
                 buffers.clearSelected()
@@ -240,14 +237,14 @@ class Groovysh extends Shell {
      * to simulate an interpreter mode, this method wraps the statements into a try/finally block that
      * stores bound variables like unbound variables
      */
-    private Object evaluateWithStoredBoundVars(final List<String> current) {
+    private Object evaluateWithStoredBoundVars(String importsSpec, final List<String> current) {
         Object result
-        String variableBlocks = ''
-        // To make groovysh behave more like an interpreter, we need to retrive all bound
+        String variableBlocks = null
+        // To make groovysh behave more like an interpreter, we need to retrieve all bound
         // vars at the end of script execution, and then update them into the groovysh Binding context.
-        Set<String> boundVars = ScriptVariableAnalyzer.getBoundVars(current.join(Parser.NEWLINE))
-        variableBlocks += "$COLLECTED_BOUND_VARS_MAP_VARNAME = new HashMap();"
+        Set<String> boundVars = ScriptVariableAnalyzer.getBoundVars(importsSpec + Parser.NEWLINE + current.join(Parser.NEWLINE), interp.classLoader)
         if (boundVars) {
+            variableBlocks = "$COLLECTED_BOUND_VARS_MAP_VARNAME = new HashMap();"
             boundVars.each({ String varname ->
                 // bound vars can be in global or some local scope.
                 // We discard locally scoped vars by ignoring MissingPropertyException
@@ -256,14 +253,20 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
 } catch (MissingPropertyException e){}"""
             })
         }
-
         // Evaluate the current buffer w/imports and dummy statement
-        List<String> buff = imports + ['try {', 'true'] + current + ['} finally {' + variableBlocks + '}']
-
+        List<String> buff;
+        if (variableBlocks) {
+            buff = [importsSpec] + ['try {', 'true'] + current + ['} finally {' + variableBlocks + '}']
+        } else {
+            buff = [importsSpec] + ['true'] + current
+        }
         setLastResult(result = interp.evaluate(buff))
 
-        Map<String, Object> boundVarValues = interp.context.getVariable(COLLECTED_BOUND_VARS_MAP_VARNAME)
-        boundVarValues.each({ String name, Object value -> interp.context.setVariable(name, value) })
+        if (variableBlocks) {
+            Map<String, Object> boundVarValues = interp.context.getVariable(COLLECTED_BOUND_VARS_MAP_VARNAME)
+            boundVarValues.each({ String name, Object value -> interp.context.setVariable(name, value) })
+        }
+
         return result
     }
 
@@ -332,7 +335,7 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
         }
         StringBuilder src = new StringBuilder()
         for (String line: buffer) {
-            src.append(line + '\n')
+            src.append(line).append('\n')
         }
 
         // not sure whether the same Lexer instance could be reused.
@@ -357,7 +360,7 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
     /**
      * Format the given number suitable for rendering as a line number column.
      */
-    private String formatLineNumber(final int num) {
+    protected String formatLineNumber(final int num) {
         assert num >= 0
 
         // Make a %03d-like string for the line number
@@ -410,7 +413,7 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
     // Recording
     //
 
-    private void maybeRecordInput(final String line) {
+    protected void maybeRecordInput(final String line) {
         RecordCommand record = registry[RecordCommand.COMMAND_NAME]
 
         if (record != null) {
@@ -418,7 +421,7 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
         }
     }
 
-    private void maybeRecordResult(final Object result) {
+    protected void maybeRecordResult(final Object result) {
         RecordCommand record = registry[RecordCommand.COMMAND_NAME]
 
         if (record != null) {
@@ -426,11 +429,11 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
         }
     }
 
-    private void maybeRecordError(Throwable cause) {
+    protected void maybeRecordError(Throwable cause) {
         RecordCommand record = registry[RecordCommand.COMMAND_NAME]
 
         if (record != null) {
-            if (Preferences.sanitizeStackTrace) {
+            if (getPreference(SANITIZE_PREFERENCE_KEY, 'false')) {
                 cause = StackTraceUtils.deepSanitize(cause)
             }
             record.recordError(cause)
@@ -442,7 +445,7 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
     //
 
     final Closure defaultResultHook = {Object result ->
-        boolean showLastResult = !io.quiet && (io.verbose || Preferences.showLastResult)
+        boolean showLastResult = !io.quiet && (io.verbose || getPreference(SHOW_LAST_RESULT_PREFERENCE_KEY, 'false'))
         if (showLastResult) {
             // avoid String.valueOf here because it bypasses pretty-printing of Collections,
             // e.g. String.valueOf( ['a': 42] ) != ['a': 42].toString()
@@ -467,13 +470,13 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
     final Closure defaultErrorHook = { Throwable cause ->
         assert cause != null
 
-        if (log.debug || ! cause instanceof CompilationFailedException) {
+        if (log.debug || ! (cause instanceof CompilationFailedException)) {
             // For CompilationErrors, the Exception Class is usually not useful to the user
             io.err.println("@|bold,red ERROR|@ ${cause.getClass().name}:")
         }
 
         if (cause instanceof MultipleCompilationErrorsException) {
-            StringWriter data = new StringWriter();
+            Writer data = new org.apache.groovy.io.StringBuilderWriter();
             PrintWriter writer = new PrintWriter(data);
             ErrorCollector collector = ((MultipleCompilationErrorsException) cause).getErrorCollector()
             Iterator<Message> msgIterator = collector.getErrors().iterator()
@@ -496,7 +499,7 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
                 log.debug(cause)
             }
             else {
-                boolean sanitize = Preferences.sanitizeStackTrace
+                boolean sanitize = getPreference(SANITIZE_PREFERENCE_KEY, 'false')
 
                 // Sanitize the stack trace unless we are in verbose mode, or the user has request otherwise
                 if (!io.verbose && sanitize) {
@@ -505,7 +508,7 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
 
                 def trace = cause.stackTrace
 
-                def buff = new StringBuffer()
+                def buff = new StringBuilder()
 
                 boolean doBreak = false
 
@@ -536,6 +539,11 @@ try {$COLLECTED_BOUND_VARS_MAP_VARNAME[\"$varname\"] = $varname;
                 }
             }
         }
+    }
+
+    // protected for mocking in tests
+    protected String getPreference(final String key, final String theDefault) {
+        return Preferences.get(key, theDefault)
     }
 
     Closure errorHook = defaultErrorHook

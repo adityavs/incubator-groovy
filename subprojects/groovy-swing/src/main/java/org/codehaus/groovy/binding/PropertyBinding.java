@@ -27,8 +27,8 @@ import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.codehaus.groovy.runtime.ResourceGroovyMethods;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
-import javax.swing.SwingUtilities;
-import java.awt.Component;
+import javax.swing.*;
+import java.awt.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyVetoException;
@@ -168,7 +168,7 @@ public class PropertyBinding implements SourceBinding, TargetBinding, TriggerBin
         return updateStrategy;
     }
 
-    private UpdateStrategy pickUpdateStrategy(Object bean, UpdateStrategy updateStrategy) {
+    private static UpdateStrategy pickUpdateStrategy(Object bean, UpdateStrategy updateStrategy) {
         if (bean instanceof Component) {
             return UpdateStrategy.MIXED;
         } else if (updateStrategy != null) {

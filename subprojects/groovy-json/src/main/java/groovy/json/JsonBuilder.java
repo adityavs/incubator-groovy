@@ -24,7 +24,14 @@ import groovy.lang.Writable;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A builder for creating JSON payloads.
@@ -35,7 +42,7 @@ import java.util.*;
  * to be able to learn about the various possibilities of usage.
  * <p>
  * Example:
- * <pre><code>
+ * <pre><code class="groovyTestCase">
  *       def builder = new groovy.json.JsonBuilder()
  *       def root = builder.people {
  *           person {
@@ -65,12 +72,24 @@ import java.util.*;
  */
 public class JsonBuilder extends GroovyObjectSupport implements Writable {
 
+    private final JsonGenerator generator;
     private Object content;
 
     /**
      * Instantiates a JSON builder.
      */
     public JsonBuilder() {
+        this.generator = JsonOutput.DEFAULT_GENERATOR;
+    }
+
+    /**
+     * Instantiates a JSON builder with a configured generator.
+     *
+     * @param generator used to generate the output
+     * @since 2.5.0
+     */
+    public JsonBuilder(JsonGenerator generator) {
+        this.generator = generator;
     }
 
     /**
@@ -80,6 +99,20 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      */
     public JsonBuilder(Object content) {
         this.content = content;
+        this.generator = JsonOutput.DEFAULT_GENERATOR;
+    }
+
+    /**
+     * Instantiates a JSON builder with some existing data structure
+     * and a configured generator.
+     *
+     * @param content a pre-existing data structure
+     * @param generator used to generate the output
+     * @since 2.5.0
+     */
+    public JsonBuilder(Object content, JsonGenerator generator) {
+        this.content = content;
+        this.generator = generator;
     }
 
     public Object getContent() {
@@ -90,8 +123,8 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * Named arguments can be passed to the JSON builder instance to create a root JSON object
      * <p>
      * Example:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * json name: "Guillaume", age: 33
      *
      * assert json.toString() == '{"name":"Guillaume","age":33}'
@@ -110,8 +143,8 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * A list of elements as arguments to the JSON builder creates a root JSON array
      * <p>
      * Example:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * def result = json([1, 2, 3])
      *
      * assert result instanceof List
@@ -131,8 +164,8 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * Varargs elements as arguments to the JSON builder create a root JSON array
      * <p>
      * Example:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * def result = json 1, 2, 3
      *
      * assert result instanceof List
@@ -144,9 +177,7 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      */
     public Object call(Object... args) {
         List<Object> listContent = new ArrayList<Object>();
-        for (Object it : args) {
-            listContent.add(it);
-        }
+        Collections.addAll(listContent, args);
         content = listContent;
 
         return content;
@@ -157,13 +188,13 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * the closure to each object in the collection
      * <p>
      * Example:
-     * <pre><code>
+     * <pre><code class="groovyTestCase">
      * class Author {
      *      String name
      * }
      * def authors = [new Author (name: "Guillaume"), new Author (name: "Jochen"), new Author (name: "Paul")]
      *
-     * def json = new JsonBuilder()
+     * def json = new groovy.json.JsonBuilder()
      * json authors, { Author author ->
      *      name author.name
      * }
@@ -174,7 +205,7 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * @param c a closure used to convert the objects of coll
      * @return a list of values
      */
-    public Object call(Collection coll, Closure c) {
+    public Object call(Iterable coll, Closure c) {
         List<Object> listContent = new ArrayList<Object>();
         if (coll != null) {
             for (Object it : coll) {
@@ -187,11 +218,18 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
     }
 
     /**
+     * Delegates to {@link #call(Iterable, Closure)}
+     */
+    public Object call(Collection coll, Closure c) {
+        return call((Iterable)coll, c);
+    }
+
+    /**
      * A closure passed to a JSON builder will create a root JSON object
      * <p>
      * Example:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * def result = json {
      *      name "Guillaume"
      *      age 33
@@ -221,9 +259,9 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      *     <li>or no argument at all</li>
      * </ul>
      * <p>
-     * Example with a classicala builder-style:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * Example with a classical builder-style:
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * def result = json.person {
      *      name "Guillaume"
      *      age 33
@@ -234,8 +272,8 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * </code></pre>
      *
      * Or alternatively with a method call taking named arguments:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * json.person name: "Guillaume", age: 33
      *
      * assert json.toString() == '{"person":{"name":"Guillaume","age":33}}'
@@ -247,16 +285,16 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * will be merged together &mdash;
      * the closure properties overriding the map key/values
      * in case the same key is used.
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * json.person(name: "Guillaume", age: 33) { town "Paris" }
      *
      * assert json.toString() == '{"person":{"name":"Guillaume","age":33,"town":"Paris"}}'
      * </code></pre>
      *
      * The empty args call will create a key whose value will be an empty JSON object:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * json.person()
      *
      * assert json.toString() == '{"person":{}}'
@@ -278,19 +316,26 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
                     return setAndGetContent(name, arr[0]);
                 }
             } else if (arr.length == 2) {
-                if (arr[0] instanceof Map && arr[1] instanceof Closure) {
-                    Map subMap = new LinkedHashMap();
-                    subMap.putAll((Map) arr[0]);
-                    subMap.putAll(JsonDelegate.cloneDelegateAndGetContent((Closure) arr[1]));
+                final Object first = arr[0];
+                final Object second = arr[1];
+                if (second instanceof Closure) {
+                    final Closure closure = (Closure)second;
+                    if (first instanceof Map) {
+                        Map subMap = new LinkedHashMap();
+                        subMap.putAll((Map) first);
+                        subMap.putAll(JsonDelegate.cloneDelegateAndGetContent(closure));
 
-                    return setAndGetContent(name, subMap);
-                } else if (arr[0] instanceof Collection && arr[1] instanceof Closure) {
-                    List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
-                    for (Object it : (Collection) arr[0]) {
-                        list.add(JsonDelegate.curryDelegateAndGetContent((Closure) arr[1], it));
+                        return setAndGetContent(name, subMap);
+                    } else if (first instanceof Iterable) {
+                        List<Map<String, Object>> list = collectContentForEachEntry((Iterable) first, closure);
+
+                        return setAndGetContent(name, list);
+                    } else if (first != null && first.getClass().isArray()) {
+                        final Iterable coll = Arrays.asList((Object[])first);
+                        List<Map<String, Object>> list = collectContentForEachEntry(coll, closure);
+
+                        return setAndGetContent(name, list);
                     }
-
-                    return setAndGetContent(name, list);
                 }
             }
 
@@ -298,6 +343,14 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
         } else {
             return setAndGetContent(name, new HashMap<String, Object>());
         }
+    }
+
+    private static List<Map<String, Object>> collectContentForEachEntry(Iterable coll, Closure closure) {
+        List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+        for (Object it : coll) {
+            list.add(JsonDelegate.curryDelegateAndGetContent(closure, it));
+        }
+        return list;
     }
 
     private Object setAndGetContent(String name, Object value) {
@@ -312,8 +365,8 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * Serializes the internal data structure built with the builder to a conformant JSON payload string
      * <p>
      * Example:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * json { temperature 37 }
      *
      * assert json.toString() == '{"temperature":37}'
@@ -322,7 +375,7 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * @return a JSON output
      */
     public String toString() {
-        return JsonOutput.toJson(content);
+        return generator.toJson(content);
     }
 
     /**
@@ -344,8 +397,8 @@ public class JsonBuilder extends GroovyObjectSupport implements Writable {
      * so that you can have the builder serialize itself the JSON payload to a writer.
      * <p>
      * Example:
-     * <pre><code>
-     * def json = new JsonBuilder()
+     * <pre><code class="groovyTestCase">
+     * def json = new groovy.json.JsonBuilder()
      * json { temperature 37 }
      *
      * def out = new StringWriter()

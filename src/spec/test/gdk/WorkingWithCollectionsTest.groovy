@@ -61,7 +61,7 @@ class WorkingWithCollectionsTest extends GroovyTestCase {
             [1, 2, 3, 4, 5].get(-2)                 // but negative index not allowed with get()
             assert false
         } catch (e) {
-            assert e instanceof ArrayIndexOutOfBoundsException
+            assert e instanceof IndexOutOfBoundsException
         }
         // end::list_usecases[]
     }
@@ -238,10 +238,28 @@ class WorkingWithCollectionsTest extends GroovyTestCase {
         '''
 
         assertScript '''
+            // tag::list_gdk_remove_index[]
+            def list = ['a','b','c','d','e','f','b','b','a']
+            assert list.remove(2) == 'c'        // remove the third element, and return it
+            assert list == ['a','b','d','e','f','b','b','a']
+            // end::list_gdk_remove_index[]
+        '''
+        
+        assertScript '''
             // tag::list_gdk4[]
             def list = [1,2,3,4,5,6,2,2,1]
-            assert list.remove(2) == 3          // remove the third element, and return it
+
+            assert list.remove(2) == 3          // this removes the element at index 2, and returns it
             assert list == [1,2,4,5,6,2,2,1]
+
+            assert list.removeElement(2)        // remove first 2 and return true
+            assert list == [1,4,5,6,2,2,1]
+
+            assert ! list.removeElement(8)      // return false because 8 is not in the list
+            assert list == [1,4,5,6,2,2,1]
+
+            assert list.removeAt(1) == 4        // remove element at index 1, and return it
+            assert list == [1,5,6,2,2,1]
             // end::list_gdk4[]
         '''
 
@@ -443,7 +461,7 @@ class WorkingWithCollectionsTest extends GroovyTestCase {
     void testMapPropertyNotation() {
         // tag::map_property[]
         def map = [name: 'Gromit', likes: 'cheese', id: 1234]
-        assert map.name == 'Gromit'     // can be used instead of map.get('Gromit')
+        assert map.name == 'Gromit'     // can be used instead of map.get('name')
         assert map.id == 1234
 
         def emptyMap = [:]
@@ -721,10 +739,12 @@ class WorkingWithCollectionsTest extends GroovyTestCase {
         text = "nice cheese gromit!"
         x = text[-1]
         assert x == "!"
+        // end::subscript_4[]
 
+        // tag::subscript_4a[]
         def name = text[-7..-2]
         assert name == "gromit"
-        // end::subscript_4[]
+        // end::subscript_4a[]
 
         // tag::subscript_5[]
         text = "nice cheese gromit!"

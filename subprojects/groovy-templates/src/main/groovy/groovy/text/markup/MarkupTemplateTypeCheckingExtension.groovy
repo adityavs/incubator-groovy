@@ -22,8 +22,22 @@ import groovy.transform.CompileStatic
 import org.codehaus.groovy.antlr.AntlrParserPlugin
 import org.codehaus.groovy.antlr.parser.GroovyLexer
 import org.codehaus.groovy.antlr.parser.GroovyRecognizer
-import org.codehaus.groovy.ast.*
-import org.codehaus.groovy.ast.expr.*
+import org.codehaus.groovy.ast.ASTNode
+import org.codehaus.groovy.ast.ClassCodeExpressionTransformer
+import org.codehaus.groovy.ast.ClassHelper
+import org.codehaus.groovy.ast.ClassNode
+import org.codehaus.groovy.ast.MethodNode
+import org.codehaus.groovy.ast.ModuleNode
+import org.codehaus.groovy.ast.Parameter
+import org.codehaus.groovy.ast.expr.ArgumentListExpression
+import org.codehaus.groovy.ast.expr.ArrayExpression
+import org.codehaus.groovy.ast.expr.BinaryExpression
+import org.codehaus.groovy.ast.expr.ClosureExpression
+import org.codehaus.groovy.ast.expr.ConstantExpression
+import org.codehaus.groovy.ast.expr.Expression
+import org.codehaus.groovy.ast.expr.MethodCallExpression
+import org.codehaus.groovy.ast.expr.TupleExpression
+import org.codehaus.groovy.ast.expr.VariableExpression
 import org.codehaus.groovy.ast.stmt.EmptyStatement
 import org.codehaus.groovy.control.ResolveVisitor
 import org.codehaus.groovy.control.SourceUnit
@@ -194,7 +208,7 @@ class MarkupTemplateTypeCheckingExtension extends GroovyTypeCheckingExtensionSup
         dummyClass.addMethod(dummyMN);
         ResolveVisitor visitor = new ResolveVisitor(ctx.compilationUnit) {
             @Override
-            protected void addError(final String msg, final ASTNode expr) {
+            public void addError(final String msg, final ASTNode expr) {
                 ctx.errorCollector.addErrorAndContinue(new SyntaxErrorMessage(
                         new SyntaxException(msg + '\n', expr.getLineNumber(), expr.getColumnNumber(), expr.getLastLineNumber(), expr.getLastColumnNumber()),
                         ctx.source)

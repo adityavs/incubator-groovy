@@ -23,17 +23,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import org.codehaus.groovy.util.StringUtil
 
 /** 
- * Tests the various new Groovy methods
- * 
- * @author <a href="mailto:james@coredevelopers.net">James Strachan</a>
- * @author Guillaume Laforge
- * @author Dierk Koenig
- * @author Paul King
- * @author Joachim Baumann
- * @author Mike Dillon
- * @author Tim Yates
- * @author Dinko Srkoc
- * @author Yu Kobayashi
+ * Tests various GDK methods
  */
 class GroovyMethodsTest extends GroovyTestCase {
     
@@ -98,7 +88,8 @@ class GroovyMethodsTest extends GroovyTestCase {
         try {
             ['one hundred', 200] as Dimension
         } catch (Exception e) {
-            assert e.message.contains("java.lang.String")
+            assert e.message.contains("Could not find matching constructor for:")
+            assert e.message.contains("String,")
         }
     }
 
@@ -431,15 +422,6 @@ class GroovyMethodsTest extends GroovyTestCase {
         map.get("bar", [:]).get("xyz", [:]).cheese = 123
         assert map.bar.xyz.cheese == 123
         assert map.size() == 2
-    }
-
-    void testDisplaySystemProperties() {
-        println "System properties are..."
-        def properties = System.properties
-        def keys = properties.keySet().sort()
-        for (k in keys) {
-            println "${k} = ${properties[k]}"
-        }
     }
 
     void testInForLists() {
@@ -827,10 +809,10 @@ class GroovyMethodsTest extends GroovyTestCase {
     }
 
     void doIt(col) {
-        col.clear();
-        col.addAll(leftCol);
-        // not really concerned about  correctness, rather that the method can be called, however..
-        assert col.intersect(rightCol) == ["2"]
+        col.clear()
+        col.addAll(leftCol)
+        // not really concerned about correctness, rather that the method can be called, however..
+        assert col.intersect(rightCol) as List == ["2"]
     }
 
     void testFileWithReader() {
@@ -1285,6 +1267,18 @@ class GroovyMethodsTest extends GroovyTestCase {
         assert items.drop( 4 ).collect { it } == [ 5 ]
         a = 1
         assert items.drop( 5 ).collect { it } == []
+
+        a = 1
+        assert items.dropRight( 0 ).collect { it } == [ 1, 2, 3, 4, 5 ]
+        a = 1
+        assert items.dropRight( 2 ).collect { it } == [ 1, 2, 3 ]
+        a = 1
+        assert items.dropRight( 4 ).collect { it } == [ 1 ]
+        a = 1
+        assert items.dropRight( 5 ).collect { it } == []
+
+        // if we ever traverse the whole exploding list we'll get a RuntimeException
+        assert new ExplodingList('letters'.toList(), 4).iterator().dropRight(1).drop(1).take(1).toList() == ['e']
     }
 
     void testIterableDrop() {
@@ -1471,6 +1465,13 @@ class GroovyMethodsTest extends GroovyTestCase {
         }
     }
 
+    void testCollectEntriesWithArray() {
+        def cityList = '1 San Francisco,2 Cupertino'
+        def cityMap = cityList.split(',').
+                collectEntries{ it.split(' ', 2) }
+        assert cityMap == ['1': 'San Francisco', '2': 'Cupertino']
+    }
+
     void testListTakeWhile() {
         def data = [
             new ArrayList( [ 1, 3, 2 ] ),
@@ -1548,6 +1549,7 @@ class GroovyMethodsTest extends GroovyTestCase {
         assert [] == [].intersect([4, 5, 6, 7, 8])
         assert [] == [1, 2, 3, 4, 5].intersect([])
         assert [4, 5] == [1, 2, 3, 4, 5].intersect([4, 5, 6, 7, 8])
+        assert [[0, 1]] == [[0, 0], [0, 1]].intersect([[0, 1], [1, 1]])
     }
 
     void testIntersectForIterables() {
@@ -1563,12 +1565,80 @@ class GroovyMethodsTest extends GroovyTestCase {
         assert [4, 5] == iterableA.intersect(iterableB)
     }
 
+    void testIntersectForSets() {
+        assert [].toSet() == [].toSet().intersect([] as Iterable)
+        assert [].toSet() == [].toSet().intersect([1, 2, 3] as Iterable)
+        assert [].toSet() == [1, 2, 3].toSet().intersect([] as Iterable)
+        assert [2, 3].toSet() == [2, 3, 4].toSet().intersect([1, 2, 3] as Iterable)
+        assert [2, 3, 4].toSet() == [2, 3, 4].toSet().intersect([1, 2, 3, 4] as Iterable)
+        assert [2, 3].toSet() == [2, 3, 4, 5].toSet().intersect([1, 2, 3] as Iterable)
+    }
+
+    void testIntersectForMaps() {
+        // GROOVY-7602
+        def list1 = [[language: 'Java'], [language: 'Groovy'], [language: 'Scala']]
+        def list2 = [[language: 'Groovy'], [language: 'JRuby'], [language: 'Java']]
+        def intersection = list1.intersect(list2)
+        assert intersection == [[language: 'Groovy'], [language: 'Java']]
+
+        def locs1 = [[loc: [0, 1]], [loc: [1, 1]]]
+        def locs2 = [[loc: [2, 1]], [loc: [1, 1]]]
+        def locInter = [[loc: [1, 1]]]
+        assert [[loc: [1, 1]]] == locs1.intersect(locs2)
+    }
+
+    // GROOVY-7602
+    void testIntersectForURL() {
+        def c1 = []
+        def c2 = []
+        c1 << new URL("http://sample.com/")
+        c2 << new URL("http://sample.com/")
+        assert c1.intersect(c2)
+    }
+
+    void testDisjointForMaps() {
+        // GROOVY-7530
+        def list1 = [[language: 'Java'], [language: 'Groovy'], [language: 'Scala']]
+        def list2 = [[language: 'Groovy'], [language: 'JRuby'], [language: 'Java']]
+        assert !list1.disjoint(list2)
+
+        def locs1 = [[loc: [0, 1]], [loc: [1, 1]]]
+        def locs2 = [[loc: [2, 1]], [loc: [1, 1]]]
+        assert !locs1.disjoint(locs2)
+    }
+
+    class Foo {
+        private String name
+
+        Foo(String name) {
+            this.name = name
+        }
+
+        boolean equals(Object o) {
+            if (this.is(o)) return true
+            if (o == null || getClass() != o.getClass()) return false
+            name == o.name
+        }
+
+        int hashCode() {
+            return 13 + 7 * name.hashCode()
+        }
+    }
+
+    // GROOVY-7530
+    void testDisjointForFoo() {
+        def a = [new Foo("foo")]
+        def b = [new Foo("foo")]
+        assert !a.disjoint(b)
+    }
+
     void testDisjointForLists() {
         assert [].disjoint([])
         assert [].disjoint([4, 5, 6, 7, 8])
         assert [1, 2, 3, 4, 5].disjoint([])
         assert ![1, 2, 3, 4, 5].disjoint([4, 5, 6, 7, 8])
         assert [1, 2, 3].disjoint([4, 5, 6, 7, 8])
+        assert ![[0, 0], [0, 1]].disjoint([[0, 1], [1, 1]])
     }
 
     void testDisjointForIterables() {
@@ -1764,6 +1834,31 @@ class WackyHashCode {
 class Things implements Iterable<String> {
     Iterator iterator() {
         ["a", "B", "c"].iterator()
+    }
+}
+
+class ExplodingList extends ArrayList {
+    final int num
+
+    ExplodingList(List orig, int num) {
+        super(orig)
+        this.num = num
+    }
+
+    def get(int index) {
+        if (index == num) {
+            throw new RuntimeException("Explode!")
+        }
+        super.get(index)
+    }
+
+    Iterator iterator() {
+        int cursor = 0
+        new Iterator() {
+            boolean hasNext() { cursor < ExplodingList.this.size() }
+            def next() { ExplodingList.this.get(cursor++) }
+            void remove() {}
+        }
     }
 }
 

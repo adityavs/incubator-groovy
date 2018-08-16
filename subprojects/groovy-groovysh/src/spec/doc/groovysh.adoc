@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -34,22 +47,26 @@ and other features.
 [source,groovy]
 -----------------------------------------------------------------
 ./bin/groovysh --help
-usage: groovysh [options] [...]
-  -C, --color[=FLAG]         Enable or disable use of ANSI colors
-  -D, --define=NAME=VALUE    Define a system property
-  -T, --terminal=TYPE        Specify the terminal TYPE to use
-  -V, --version              Display the version
-  -classpath                 Specify where to find the class files - must
-                             be first argument
-  -cp, --classpath           Aliases for '-classpath'
-  -d, --debug                Enable debug output
-  -e, --evaluate=arg         Evaluate option fist when starting
-                             interactive session
-  -h, --help                 Display this help message
-  -pa, --parameters          Generate metadata for reflection on method
-                             parameter names (jdk8+ only)
-  -q, --quiet                Suppress superfluous output
-  -v, --verbose              Enable verbose output
+
+Usage: groovysh [options] [...]
+The Groovy Shell, aka groovysh, is a command-line application which allows easy
+access to evaluate Groovy expressions, define classes and run simple
+experiments.
+  -C, --color[=<FLAG>]    Enable or disable use of ANSI colors
+      -cp, -classpath, --classpath
+                          Specify where to find the class files - must be first
+                            argument
+  -d, --debug             Enable debug output
+  -D, --define=<name=value>
+                          Define a system property
+  -e, --evaluate=<CODE>   Evaluate the code first when starting interactive session
+  -h, --help              Display this help message
+      -pa, --parameters   Generate metadata for reflection on method parameter names
+                            (jdk8+ only)
+  -q, --quiet             Suppress superfluous output
+  -T, --terminal=<TYPE>   Specify the terminal TYPE to use
+  -v, --verbose           Enable verbose output
+  -V, --version           Display the version
 -----------------------------------------------------------------
 
 [[GroovyShell-EvaluatingExpressions]]
@@ -177,7 +194,7 @@ Available commands:
   :quit      (:q ) Alias to: :exit
   import     (:i ) Import a class into the namespace
   :display   (:d ) Display the current buffer
-  :clear     (:c ) Clear the buffer and reset the prompt counter.
+  :clear     (:c ) Clear the buffer and reset the prompt counter
   :show      (:S ) Show variables, classes or imports
   :inspect   (:n ) Inspect a variable or the last result with the GUI object browser
   :purge     (:p ) Purge variables, classes, imports or preferences
@@ -189,8 +206,9 @@ Available commands:
   :history   (:H ) Display, manage and recall edit-line history
   :alias     (:a ) Create an alias
   :set       (:= ) Set (or list) preferences
-  :register  (:rc) Registers a new command with the shell
-  :doc       (:D ) Opens a browser window displaying the doc for the argument
+  :grab      (:g ) Add a dependency to the shell environment
+  :register  (:rc) Register a new command with the shell
+  :doc       (:D ) Open a browser window displaying the doc for the argument
 
 For help on a specific command type:
     :help <command>
@@ -226,6 +244,20 @@ Add a custom import which will be included for all shell evaluations.
 
 This command can be given at any time to add new imports.
 
+[[GroovyShell-grab]]
+===== `grab`
+
+Grab a dependency (Maven, Ivy, etc.) from Internet sources or cache,
+and add it to the Groovy Shell environment.
+
+----
+groovy:000> :grab 'com.google.guava:guava:19.0'
+groovy:000> import com.google.common.collect.BiMap 
+===> com.google.common.collect.BiMap
+----
+
+This command can be given at any time to add new dependencies.
+
 [[GroovyShell-display]]
 ===== `display`
 
@@ -242,7 +274,7 @@ Example
 groovy:000> class Foo {
 groovy:001> def bar
 groovy:002> def baz() {
-groovy:003> display
+groovy:003> :display
  001> class Foo {
  002> def bar
  003> def baz() {
@@ -384,7 +416,7 @@ Set or list preferences.
 === Preferences
 
 Some of aspects of `groovysh` behaviors can be customized by setting
-preferences. Preferences are set using the `set` command or the `\=`
+preferences. Preferences are set using the `set` command or the `:=`
 shortcut.
 
 [[GroovyShell-RecognizedPreferences]]

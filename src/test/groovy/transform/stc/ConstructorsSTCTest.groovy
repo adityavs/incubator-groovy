@@ -42,6 +42,23 @@ class ConstructorsSTCTest extends StaticTypeCheckingTestCase {
         ''', 'No matching constructor found: java.awt.Dimension<init>(int)'
     }
 
+    void testWrongNumberOfArgumentsWithDefaultConstructor() {
+        shouldFailWithMessages '''
+            class X {}
+            def foo() {
+              new X("f")
+            }
+            println foo()
+        ''', 'Cannot find matching method X#<init>(java.lang.String)'
+    }
+
+    void testCreateArrayWithDefaultConstructor() {
+        assertScript '''
+            String[] strings = ['a','b','c']
+            int[] ints = new int[2]
+        '''
+    }
+
     void testIncorrectArgumentTypes() {
         // test that wrong number of arguments will fail
         shouldFailWithMessages '''
@@ -366,6 +383,28 @@ class ConstructorsSTCTest extends StaticTypeCheckingTestCase {
                }
             }
             blah(a:'foo')
+        '''
+    }
+
+    //GROOVY-7164
+    void testDefaultConstructorWhenSetterParamAndFieldHaveDifferentTypes() {
+        assertScript '''
+            class Test {
+                private long timestamp
+
+                Date getTimestamp() {
+                    return timestamp ? new Date(timestamp) : null
+                }
+
+                void setTimestamp (Date timestamp) {
+                    this.timestamp = timestamp.time
+                }
+
+                def main() {
+                    new Test(timestamp: new Date())
+                }
+            }
+            new Test().main()
         '''
     }
 }

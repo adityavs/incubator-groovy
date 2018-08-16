@@ -24,8 +24,8 @@ import groovy.lang.GroovyShell;
 import groovy.lang.MissingMethodException;
 import groovy.lang.Script;
 import groovy.util.AntBuilder;
+import org.apache.groovy.io.StringBuilderWriter;
 import org.apache.tools.ant.BuildException;
-import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.taskdefs.Java;
 import org.apache.tools.ant.types.Commandline;
@@ -49,8 +49,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.io.StringWriter;
+import java.io.Writer;
 import java.lang.reflect.Field;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Vector;
 
 /**
@@ -69,7 +71,7 @@ public class Groovy extends Java {
     /**
      * files to load
      */
-    private Vector<FileSet> filesets = new Vector<FileSet>();
+    private final Vector<FileSet> filesets = new Vector<FileSet>();
 
     /**
      * input file
@@ -106,9 +108,9 @@ public class Groovy extends Java {
      * Used to specify the debug output to print stacktraces in case something fails.
      * TODO: Could probably be reused to specify the encoding of the files to load or other properties.
      */
-    private CompilerConfiguration configuration = new CompilerConfiguration();
+    private final CompilerConfiguration configuration = new CompilerConfiguration();
 
-    private Commandline cmdline = new Commandline();
+    private final Commandline cmdline = new Commandline();
     private boolean contextClassLoader;
 
     /**
@@ -299,15 +301,6 @@ public class Groovy extends Java {
             throw new BuildException("Source file does not exist!", getLocation());
         }
 
-        // TODO: any of this used?
-        // deal with the filesets
-        for (int i = 0; i < filesets.size(); i++) {
-            FileSet fs = filesets.elementAt(i);
-            DirectoryScanner ds = fs.getDirectoryScanner(getProject());
-            File srcDir = fs.getDir(getProject());
-            String[] srcFiles = ds.getIncludedFiles();
-        }
-
         try {
             PrintStream out = System.out;
             try {
@@ -415,7 +408,7 @@ public class Groovy extends Java {
                 configureCompiler();
                 super.execute();
             } catch (Exception e) {
-                StringWriter writer = new StringWriter();
+                Writer writer = new StringBuilderWriter();
                 new ErrorReporter(e, false).write(new PrintWriter(writer));
                 String message = writer.toString();
                 throw new BuildException("Script Failed: " + message, e, getLocation());
@@ -456,7 +449,14 @@ public class Groovy extends Java {
         }
 
         final String scriptName = computeScriptName();
-        final GroovyClassLoader classLoader = new GroovyClassLoader(baseClassLoader);
+        final GroovyClassLoader classLoader =
+                AccessController.doPrivileged(
+                        new PrivilegedAction<GroovyClassLoader>() {
+                            @Override
+                            public GroovyClassLoader run() {
+                                return new GroovyClassLoader(baseClassLoader);
+                            }
+                        });
         addClassPathes(classLoader);
         configureCompiler();
         final GroovyShell groovy = new GroovyShell(classLoader, new Binding(), configuration);
@@ -536,7 +536,7 @@ public class Groovy extends Java {
     }
 
     private void processError(Exception e) {
-        StringWriter writer = new StringWriter();
+        Writer writer = new StringBuilderWriter();
         new ErrorReporter(e, false).write(new PrintWriter(writer));
         String message = writer.toString();
         throw new BuildException("Script Failed: " + message, e, getLocation());
@@ -583,9 +583,9 @@ public class Groovy extends Java {
         if (groovyHome == null) {
             throw new IllegalStateException("Neither ${groovy.home} nor GROOVY_HOME defined.");
         }
-        File jarDir = new File(groovyHome, "embeddable");
+        File jarDir = new File(groovyHome, "lib");
         if (!jarDir.exists()) {
-            throw new IllegalStateException("GROOVY_HOME incorrectly defined. No embeddable directory found in: " + groovyHome);
+            throw new IllegalStateException("GROOVY_HOME incorrectly defined. No lib directory found in: " + groovyHome);
         }
         final File[] files = jarDir.listFiles();
         for (File file : files) {

@@ -31,15 +31,19 @@ import junit.textui.ResultPrinter;
 import org.codehaus.groovy.runtime.InvokerHelper;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.io.IOException;
-import java.security.*;
+import java.io.PrintStream;
+import java.security.AccessControlException;
+import java.security.AccessController;
+import java.security.Permission;
+import java.security.Policy;
+import java.security.PrivilegedAction;
 import java.util.Enumeration;
 
 /**
  * @author Steve Goetze
  */
-public class SecurityTestSupport extends GroovyTestCase {
+public abstract class SecurityTestSupport extends GroovyTestCase {
     private static final String POLICY_FILE = "security/groovy.policy";
     private static int counter = 0;
     private static boolean securityDisabled;
@@ -88,11 +92,15 @@ public class SecurityTestSupport extends GroovyTestCase {
         }
     }
 
-    protected GroovyClassLoader loader = (GroovyClassLoader) AccessController.doPrivileged(new PrivilegedAction() {
-        public Object run() {
-            return new GroovyClassLoader(SecurityTestSupport.class.getClassLoader());
-        }
-    });
+    protected GroovyClassLoader loader =
+            AccessController.doPrivileged(
+                    new PrivilegedAction<GroovyClassLoader>() {
+                        @Override
+                        public GroovyClassLoader run() {
+                            return new GroovyClassLoader(SecurityTestSupport.class.getClassLoader());
+                        }
+                    }
+            );
 
     private SecurityManager securityManager;
     private ClassLoader currentClassLoader;
@@ -131,6 +139,7 @@ public class SecurityTestSupport extends GroovyTestCase {
         }
         currentClassLoader = Thread.currentThread().getContextClassLoader();
         AccessController.doPrivileged(new PrivilegedAction() {
+            @Override
             public Object run() {
                 Thread.currentThread().setContextClassLoader(loader);
                 return null;
@@ -140,6 +149,7 @@ public class SecurityTestSupport extends GroovyTestCase {
 
     protected void tearDown() {
         AccessController.doPrivileged(new PrivilegedAction() {
+            @Override
             public Object run() {
                 System.setSecurityManager(securityManager);
                 Thread.currentThread().setContextClassLoader(currentClassLoader);
@@ -260,17 +270,26 @@ public class SecurityTestSupport extends GroovyTestCase {
       * is non-null, then this invocation expects an AccessControlException with missingPermission
       * as the reason.  If missingPermission is null, the script is expected to execute successfully.
       */
-    protected void assertExecute(File file, Permission missingPermission) {
+    protected void assertExecute(final File file, final Permission missingPermission) {
         if (!isSecurityAvailable()) {
             return;
         }
-        GroovyCodeSource gcs = null;
-        try {
-            gcs = new GroovyCodeSource(file);
-        } catch (IOException fnfe) {
-            fail(fnfe.toString());
-        }
-        parseAndExecute(gcs, missingPermission);
+        // Use our privileged access in order to prevent checks lower in the call stack.  Otherwise we would have
+        // to grant access to IDE unit test runners and unit test libs.  We only care about testing the call stack
+        // higher upstream from this point of execution.
+        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+            @Override
+            public Void run() {
+                GroovyCodeSource gcs = null;
+                try {
+                    gcs = new GroovyCodeSource(file);
+                } catch (IOException fnfe) {
+                    fail(fnfe.toString());
+                }
+                parseAndExecute(gcs, missingPermission);
+                return null;
+            }
+        });
     }
 
     /*
@@ -278,13 +297,20 @@ public class SecurityTestSupport extends GroovyTestCase {
       * is non-null, then this invocation expects an AccessControlException with missingPermission
       * as the reason.  If missingPermission is null, the script is expected to execute successfully.
       */
-    protected void assertExecute(String scriptStr, String codeBase, Permission missingPermission) {
+    protected void assertExecute(final String scriptStr, String codeBase, final Permission missingPermission) {
         if (!isSecurityAvailable()) {
             return;
         }
-        if (codeBase == null) {
-            codeBase = "/groovy/security/test";
-        }
-        parseAndExecute(new GroovyCodeSource(scriptStr, generateClassName(), codeBase), missingPermission);
+        final String effectiveCodeBase = (codeBase != null) ? codeBase : "/groovy/security/test";
+        // Use our privileged access in order to prevent checks lower in the call stack.  Otherwise we would have
+        // to grant access to IDE unit test runners and unit test libs.  We only care about testing the call stack
+        // higher upstream from this point of execution.
+        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+            @Override
+            public Void run() {
+                parseAndExecute(new GroovyCodeSource(scriptStr, generateClassName(), effectiveCodeBase), missingPermission);
+                return null;
+            }
+        });
     }
 }

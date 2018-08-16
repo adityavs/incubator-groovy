@@ -18,11 +18,11 @@
  */
 package groovy.jmx.builder
 
-import java.lang.management.ManagementFactory
 import javax.management.DynamicMBean
 import javax.management.MBeanServerConnection
 import javax.management.MBeanServerFactory
 import javax.management.ObjectName
+import java.lang.management.ManagementFactory
 
 /**
  * This is a utility class used as a helper for JmxBuilder.
@@ -248,14 +248,14 @@ class JmxBuilderTools {
      * <p>
      * <pre>
      * if(
-     *     DyanamicMBean.class.isAssignable(cls) ||
+     *     DynamicMBean.class.isAssignable(cls) ||
      *     cls.getName().endsWith("MBean") ||
      *     cls.getName().endsWith("MXBean")
      * ) then class is MBean
      * </pre>
      *
      * @param cls - class to test
-     * @return true = if class implements DyanmicMBean or interface name that ends in MBean or MXBean.
+     * @return true = if class implements DynamicMBean or interface name that ends in MBean or MXBean.
      */
     public static boolean isClassMBean(Class cls) {
         boolean result = false

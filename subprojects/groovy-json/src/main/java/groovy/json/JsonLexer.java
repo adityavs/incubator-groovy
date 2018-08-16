@@ -18,14 +18,17 @@
  */
 package groovy.json;
 
-import static groovy.json.JsonTokenType.*;
-
 import groovy.io.LineColumnReader;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Iterator;
-import java.util.regex.Pattern;
+
+import static groovy.json.JsonTokenType.FALSE;
+import static groovy.json.JsonTokenType.NUMBER;
+import static groovy.json.JsonTokenType.OPEN_CURLY;
+import static groovy.json.JsonTokenType.STRING;
+import static groovy.json.JsonTokenType.startingWith;
 
 /**
  * The lexer reads JSON tokens in a streaming fashion from the underlying reader.
@@ -44,9 +47,7 @@ public class JsonLexer implements Iterator<JsonToken> {
     private static final char ZERO     = '0';
     private static final char NINE     = '9';
 
-    private static final Pattern p = Pattern.compile("\\\\u(\\p{XDigit}{4})");
-
-    private LineColumnReader reader;
+    private final LineColumnReader reader;
 
     /**
      * Underlying reader from which to read the JSON tokens.
@@ -60,7 +61,7 @@ public class JsonLexer implements Iterator<JsonToken> {
     private JsonToken currentToken = null;
 
     /**
-     * Instanciates a lexer with a reader from which to read JSON tokens.
+     * Instantiates a lexer with a reader from which to read JSON tokens.
      * Under the hood, the reader is wrapped in a <code>LineColumnReader</code>,
      * for line and column information, unless it's already an instance of that class.
      *

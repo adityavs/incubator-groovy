@@ -263,9 +263,9 @@ class SyntaxTest extends CompilableTestSupport {
 
         // tag::quoted_id_with_gstring[]
         def firstname = "Homer"
-        map."Simson-${firstname}" = "Homer Simson"
+        map."Simpson-${firstname}" = "Homer Simpson"
 
-        assert map.'Simson-Homer' == "Homer Simson"
+        assert map.'Simpson-Homer' == "Homer Simpson"
         // end::quoted_id_with_gstring[]
 
         // tag::quoted_id_with_all_strings[]
@@ -502,7 +502,8 @@ class SyntaxTest extends CompilableTestSupport {
             \ backslash
             / forward slash
             $/ escaped forward slash
-            $/$ escaped dollar slashy string delimiter
+            $$$/ escaped opening dollar slashy
+            $/$$ escaped closing dollar slashy
         /$
 
         assert [
@@ -512,10 +513,10 @@ class SyntaxTest extends CompilableTestSupport {
             '$ escaped dollar sign',
             '\\ backslash',
             '/ forward slash',
-                '$/ escaped forward slash',
-                '/$ escaped dollar slashy string delimiter'
-
-                ].each { dollarSlashy.contains(it) }
+            '/ escaped forward slash',
+            '$/ escaped opening dollar slashy',
+            '/$ escaped closing dollar slashy'
+        ].every { dollarSlashy.contains(it) }
         // end::dollar_slashy_1[]
     }
 

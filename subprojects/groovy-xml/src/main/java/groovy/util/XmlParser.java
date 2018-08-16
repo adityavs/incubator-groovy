@@ -57,7 +57,7 @@ import java.util.Map;
  * most simple use cases of processing XML.
  * <p>
  * Example usage:
- * <pre>
+ * <pre class="groovyTestCase">
  * def xml = '&lt;root&gt;&lt;one a1="uno!"/&gt;&lt;two&gt;Some text!&lt;/two&gt;&lt;/root&gt;'
  * def rootNode = new XmlParser().parseText(xml)
  * assert rootNode.name() == 'root'
@@ -65,16 +65,13 @@ import java.util.Map;
  * assert rootNode.two.text() == 'Some text!'
  * rootNode.children().each { assert it.name() in ['one','two'] }
  * </pre>
- *
- * @author <a href="mailto:james@coredevelopers.net">James Strachan</a>
- * @author Paul King
  */
 public class XmlParser implements ContentHandler {
 
     private StringBuilder bodyText = new StringBuilder();
-    private List<Node> stack = new ArrayList<Node>();
+    private final List<Node> stack = new ArrayList<Node>();
     private Locator locator;
-    private XMLReader reader;
+    private final XMLReader reader;
     private Node parent;
 
     private boolean trimWhitespace = false;
@@ -82,7 +79,7 @@ public class XmlParser implements ContentHandler {
     private boolean namespaceAware;
 
     /**
-     * Creates a non-validating and non-namespace-aware <code>XmlParser</code> which does not allow DOCTYPE declarations in documents.
+     * Creates a non-validating and namespace-aware <code>XmlParser</code> which does not allow DOCTYPE declarations in documents.
      *
      * @throws ParserConfigurationException if no parser which satisfies the requested configuration can be created.
      * @throws SAXException for SAX errors.
@@ -130,7 +127,7 @@ public class XmlParser implements ContentHandler {
         reader = parser.getXMLReader();
     }
 
-    private void setQuietly(SAXParserFactory factory, String feature, boolean value) {
+    private static void setQuietly(SAXParserFactory factory, String feature, boolean value) {
         try {
             factory.setFeature(feature, value);
         }

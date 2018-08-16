@@ -141,6 +141,24 @@ class SqlCompleteTest extends SqlHelperTestCase {
         assert results == ["James": "Strachan", "Sam": "Pullara"]
     }
 
+    void testRowsWithEmptyMapParams() {
+        def results = sql.rows("select * from PERSON where firstname like '%am%' and lastname like '%a%'", [:])
+        assert results.collectEntries{ [it.firstname, it.lastname] } == ["James": "Strachan", "Sam": "Pullara"]
+    }
+
+    // GROOVY-8174: we'd like a strict test like this but current drivers aren't up to it
+//    void testRowsWithIncorrectNumberOfParams() {
+//        shouldFail(IllegalArgumentException) {
+//            sql.rows("select * from PERSON where firstname like ? and lastname like ?", ['foo', 'bar', 'baz'])
+//        }
+//    }
+
+    void testRowsWithIncorrectParam() {
+        shouldFail(IllegalArgumentException) {
+            sql.rows("select * from PERSON where firstname like :x", ['foo'])
+        }
+    }
+
     void testEachRowWithStringAndClosure() {
         def results = [:]
         sql.eachRow("select * from PERSON", personMetaClosure) {

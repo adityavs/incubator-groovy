@@ -153,7 +153,7 @@ public class XmlNodePrinter {
     }
 
     /**
-     * Whether empty elements are expanded from <tagName/> to <tagName></tagName>.
+     * Whether empty elements are expanded from &lt;tagName/&gt; to &lt;tagName&gt;&lt;/tagName&gt;.
      *
      * @param expandEmptyElements if <code>true</code>, empty
      *                            elements will be represented by an opening tag
@@ -337,7 +337,7 @@ public class XmlNodePrinter {
         }
     }
 
-    private boolean isEmptyElement(Node node) {
+    private static boolean isEmptyElement(Node node) {
         if (node == null) {
             throw new IllegalArgumentException("Node must not be null!");
         }
@@ -414,7 +414,7 @@ public class XmlNodePrinter {
         }
     }
 
-    protected class NamespaceContext {
+    protected static class NamespaceContext {
         private final Map<String, String> namespaceMap;
 
         public NamespaceContext() {

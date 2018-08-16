@@ -18,9 +18,18 @@
  */
 package org.codehaus.groovy.runtime;
 
-import static java.nio.file.StandardOpenOption.APPEND;
-import static java.nio.file.StandardOpenOption.CREATE;
-import static org.codehaus.groovy.runtime.DefaultGroovyMethods.get;
+import groovy.io.FileType;
+import groovy.io.FileVisitResult;
+import groovy.io.GroovyPrintWriter;
+import groovy.lang.Closure;
+import groovy.lang.MetaClass;
+import groovy.lang.Writable;
+import groovy.transform.stc.ClosureParams;
+import groovy.transform.stc.FromString;
+import groovy.transform.stc.PickFirstResolver;
+import groovy.transform.stc.SimpleType;
+import org.codehaus.groovy.runtime.callsite.BooleanReturningMethodInvoker;
+import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -52,18 +61,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import groovy.io.FileType;
-import groovy.io.FileVisitResult;
-import groovy.io.GroovyPrintWriter;
-import groovy.lang.Closure;
-import groovy.lang.MetaClass;
-import groovy.lang.Writable;
-import groovy.transform.stc.ClosureParams;
-import groovy.transform.stc.FromString;
-import groovy.transform.stc.PickFirstResolver;
-import groovy.transform.stc.SimpleType;
-import org.codehaus.groovy.runtime.callsite.BooleanReturningMethodInvoker;
-import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static org.codehaus.groovy.runtime.DefaultGroovyMethods.get;
 
 /**
  * This class defines new groovy methods for Readers, Writers, InputStreams and
@@ -448,7 +448,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Write the text to the Path.
+     * Write the text to the Path without writing a BOM .
      *
      * @param self a Path
      * @param text the text to write to the Path
@@ -456,18 +456,23 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void write(Path self, String text) throws IOException {
-        Writer writer = null;
-        try {
-            writer = new OutputStreamWriter(Files.newOutputStream(self), Charset.defaultCharset());
-            writer.write(text);
-            writer.flush();
+        write(self, text, false);
+    }
 
-            Writer temp = writer;
-            writer = null;
-            temp.close();
-        } finally {
-            closeWithWarning(writer);
-        }
+    /**
+     * Write the text to the Path.  If the default charset is
+     * "UTF-16BE" or "UTF-16LE" (or an equivalent alias) and
+     * <code>writeBom</code> is <code>true</code>, the requisite byte order
+     * mark is written to the file before the text.
+     *
+     * @param self     a Path
+     * @param text     the text to write to the Path
+     * @param writeBom whether to write the BOM
+     * @throws java.io.IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void write(Path self, String text, boolean writeBom) throws IOException {
+        write(self, text, Charset.defaultCharset().name(), writeBom);
     }
 
     /**
@@ -548,7 +553,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Write the text to the Path, using the specified encoding.
+     * Write the text to the Path without writing a BOM, using the specified encoding.
      *
      * @param self    a Path
      * @param text    the text to write to the Path
@@ -557,9 +562,30 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void write(Path self, String text, String charset) throws IOException {
+        write(self, text, charset, false);
+    }
+
+    /**
+     * Write the text to the Path, using the specified encoding.  If the given
+     * charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias) and
+     * <code>writeBom</code> is <code>true</code>, the requisite byte order
+     * mark is written to the file before the text.
+     *
+     * @param self     a Path
+     * @param text     the text to write to the Path
+     * @param charset  the charset used
+     * @param writeBom whether to write a BOM
+     * @throws java.io.IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void write(Path self, String text, String charset, boolean writeBom) throws IOException {
         Writer writer = null;
         try {
-            writer = new OutputStreamWriter(Files.newOutputStream(self, CREATE, APPEND), Charset.forName(charset));
+            OutputStream out = Files.newOutputStream(self);
+            if (writeBom) {
+                IOGroovyMethods.writeUTF16BomIfRequired(out, charset);
+            }
+            writer = new OutputStreamWriter(out, Charset.forName(charset));
             writer.write(text);
             writer.flush();
 
@@ -572,7 +598,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Append the text at the end of the Path.
+     * Append the text at the end of the Path without writing a BOM.
      *
      * @param self a Path
      * @param text the text to append at the end of the Path
@@ -580,22 +606,12 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void append(Path self, Object text) throws IOException {
-        Writer writer = null;
-        try {
-            writer = new OutputStreamWriter(Files.newOutputStream(self, CREATE, APPEND), Charset.defaultCharset());
-            InvokerHelper.write(writer, text);
-            writer.flush();
-
-            Writer temp = writer;
-            writer = null;
-            temp.close();
-        } finally {
-            closeWithWarning(writer);
-        }
+        append(self, text, Charset.defaultCharset().name(), false);
     }
 
     /**
-     * Append the text supplied by the Writer at the end of the File.
+     * Append the text supplied by the Writer at the end of the File without
+     * writing a BOM.
      *
      * @param file a Path
      * @param reader the Reader supplying the text to append at the end of the File
@@ -603,11 +619,11 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void append(Path file, Reader reader) throws IOException {
-        appendBuffered(file, reader);
+        append(file, reader, Charset.defaultCharset().name());
     }
 
     /**
-     * Append the text supplied by the Writer at the end of the File.
+     * Append the text supplied by the Writer at the end of the File without writing a BOM.
      *
      * @param file a File
      * @param writer the Writer supplying the text to append at the end of the File
@@ -615,26 +631,12 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void append(Path file, Writer writer) throws IOException {
-        appendBuffered(file, writer);
-    }
-
-    private static void appendBuffered(Path file, Object text) throws IOException {
-        BufferedWriter writer = null;
-        try {
-            writer = newWriter(file, true);
-            InvokerHelper.write(writer, text);
-            writer.flush();
-
-            Writer temp = writer;
-            writer = null;
-            temp.close();
-        } finally {
-            closeWithWarning(writer);
-        }
+        append(file, writer, Charset.defaultCharset().name());
     }
 
     /**
-     * Append bytes to the end of a Path.
+     * Append bytes to the end of a Path.  It <strong>will not</strong> be
+     * interpreted as text.
      *
      * @param self  a Path
      * @param bytes the byte array to append to the end of the Path
@@ -675,7 +677,24 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Append the text at the end of the Path, using a specified encoding.
+     * Append the text at the end of the Path.  If the default charset is
+     * "UTF-16BE" or "UTF-16LE" (or an equivalent alias) and
+     * <code>writeBom</code> is <code>true</code>, the requisite byte order
+     * mark is written to the file before the text.
+     *
+     * @param self    a Path
+     * @param text    the text to append at the end of the Path
+     * @param writeBom whether to write the BOM
+     * @throws java.io.IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void append(Path self, Object text, boolean writeBom) throws IOException {
+        append(self, text, Charset.defaultCharset().name(), writeBom);
+    }
+
+    /**
+     * Append the text at the end of the Path without writing a BOM, using a specified
+     * encoding.
      *
      * @param self    a Path
      * @param text    the text to append at the end of the Path
@@ -684,10 +703,33 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void append(Path self, Object text, String charset) throws IOException {
+        append(self, text, charset, false);
+    }
+
+    /**
+     * Append the text at the end of the Path, using a specified encoding.  If
+     * the given charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias),
+     * <code>writeBom</code> is <code>true</code>, and the file doesn't already
+     * exist, the requisite byte order mark is written to the file before the
+     * text is appended.
+     *
+     * @param self     a Path
+     * @param text     the text to append at the end of the Path
+     * @param charset  the charset used
+     * @param writeBom whether to write the BOM
+     * @throws java.io.IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void append(Path self, Object text, String charset, boolean writeBom) throws IOException {
         Writer writer = null;
         try {
+            Charset resolvedCharset = Charset.forName(charset);
+            boolean shouldWriteBom = writeBom && !self.toFile().exists();
             OutputStream out = Files.newOutputStream(self, CREATE, APPEND);
-            writer = new OutputStreamWriter(out, Charset.forName(charset));
+            if (shouldWriteBom) {
+                IOGroovyMethods.writeUTF16BomIfRequired(out, resolvedCharset);
+            }
+            writer = new OutputStreamWriter(out, resolvedCharset);
             InvokerHelper.write(writer, text);
             writer.flush();
 
@@ -701,6 +743,24 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
 
     /**
      * Append the text supplied by the Writer at the end of the File, using a specified encoding.
+     * If the given charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias),
+     * <code>writeBom</code> is <code>true</code>, and the file doesn't already
+     * exist, the requisite byte order mark is written to the file before the
+     * text is appended.
+     *
+     * @param file a File
+     * @param writer the Writer supplying the text to append at the end of the File
+     * @param writeBom whether to write the BOM
+     * @throws IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void append(Path file, Writer writer, boolean writeBom) throws IOException {
+        append(file, writer, Charset.defaultCharset().name(), writeBom);
+    }
+
+    /**
+     * Append the text supplied by the Writer at the end of the File without writing a BOM,
+     * using a specified encoding.
      *
      * @param file a File
      * @param writer the Writer supplying the text to append at the end of the File
@@ -709,11 +769,47 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void append(Path file, Writer writer, String charset) throws IOException {
-        appendBuffered(file, writer, charset);
+        appendBuffered(file, writer, charset, false);
+    }
+
+    /**
+     * Append the text supplied by the Writer at the end of the File, using a specified encoding.
+     * If the given charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias),
+     * <code>writeBom</code> is <code>true</code>, and the file doesn't already
+     * exist, the requisite byte order mark is written to the file before the
+     * text is appended.
+     *
+     * @param file a File
+     * @param writer the Writer supplying the text to append at the end of the File
+     * @param charset the charset used
+     * @param writeBom whether to write the BOM
+     * @throws IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void append(Path file, Writer writer, String charset, boolean writeBom) throws IOException {
+        appendBuffered(file, writer, charset, writeBom);
     }
 
     /**
      * Append the text supplied by the Reader at the end of the File, using a specified encoding.
+     * If the given charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias),
+     * <code>writeBom</code> is <code>true</code>, and the file doesn't already
+     * exist, the requisite byte order mark is written to the file before the
+     * text is appended.
+     *
+     * @param file a File
+     * @param reader the Reader supplying the text to append at the end of the File
+     * @param writeBom whether to write the BOM
+     * @throws IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void append(Path file, Reader reader, boolean writeBom) throws IOException {
+        appendBuffered(file, reader, Charset.defaultCharset().name(), writeBom);
+    }
+
+    /**
+     * Append the text supplied by the Reader at the end of the File without writing
+     * a BOM, using a specified encoding.
      *
      * @param file a File
      * @param reader the Reader supplying the text to append at the end of the File
@@ -722,13 +818,35 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static void append(Path file, Reader reader, String charset) throws IOException {
-        appendBuffered(file, reader, charset);
+        append(file, reader, charset, false);
     }
 
-    private static void appendBuffered(Path file, Object text, String charset) throws IOException {
+    /**
+     * Append the text supplied by the Reader at the end of the File, using a specified encoding.
+     * If the given charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias),
+     * <code>writeBom</code> is <code>true</code>, and the file doesn't already
+     * exist, the requisite byte order mark is written to the file before the
+     * text is appended.
+     *
+     * @param file a File
+     * @param reader the Reader supplying the text to append at the end of the File
+     * @param charset the charset used
+     * @param writeBom whether to write the BOM
+     * @throws IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static void append(Path file, Reader reader, String charset, boolean writeBom) throws IOException {
+        appendBuffered(file, reader, charset, writeBom);
+    }
+
+    private static void appendBuffered(Path file, Object text, String charset, boolean writeBom) throws IOException {
         BufferedWriter writer = null;
         try {
+            boolean shouldWriteBom = writeBom && !file.toFile().exists();
             writer = newWriter(file, charset, true);
+            if (shouldWriteBom) {
+                IOGroovyMethods.writeUTF16BomIfRequired(writer, charset);
+            }
             InvokerHelper.write(writer, text);
             writer.flush();
 
@@ -761,7 +879,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * Both regular files and subfolders/subdirectories can be processed depending
      * on the fileType enum value.
      *
-     * @param self     a file object
+     * @param self     a Path (that happens to be a folder/directory)
      * @param fileType if normal files or directories or both should be processed
      * @param closure  the closure to invoke
      * @throws java.io.FileNotFoundException    if the given directory does not exist
@@ -789,7 +907,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * Both regular files and subfolders/subdirectories are processed.
      *
      * @param self    a Path (that happens to be a folder/directory)
-     * @param closure a closure (first parameter is the 'child' file)
+     * @param closure a closure (the parameter is the Path for the 'child' file)
      * @throws java.io.FileNotFoundException    if the given directory does not exist
      * @throws IllegalArgumentException if the provided Path object does not represent a directory
      * @see #eachFile(Path, groovy.io.FileType, groovy.lang.Closure)
@@ -804,7 +922,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * ignoring regular files.
      *
      * @param self    a Path (that happens to be a folder/directory)
-     * @param closure a closure (first parameter is the subdirectory file)
+     * @param closure a closure (the parameter is the Path for the subdirectory file)
      * @throws java.io.FileNotFoundException    if the given directory does not exist
      * @throws IllegalArgumentException if the provided Path object does not represent a directory
      * @see #eachFile(Path, groovy.io.FileType, groovy.lang.Closure)
@@ -815,12 +933,13 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Invokes the closure for each descendant file in this directory.
-     * Sub-directories are recursively searched in a depth-first fashion.
-     * Both regular files and subdirectories may be passed to the closure
-     * depending on the value of fileType.
+     * Processes each descendant file in this directory and any sub-directories.
+     * Processing consists of potentially calling <code>closure</code> passing it the current
+     * file (which may be a normal file or subdirectory) and then if a subdirectory was encountered,
+     * recursively processing the subdirectory. Whether the closure is called is determined by whether
+     * the file was a normal file or subdirectory and the value of fileType.
      *
-     * @param self     a file object
+     * @param self     a Path (that happens to be a folder/directory)
      * @param fileType if normal files or directories or both should be processed
      * @param closure  the closure to invoke on each file
      * @throws java.io.FileNotFoundException    if the given directory does not exist
@@ -843,8 +962,11 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Invokes <code>closure</code> for each descendant file in this directory tree.
-     * Sub-directories are recursively traversed as found.
+     * Processes each descendant file in this directory and any sub-directories.
+     * Processing consists of potentially calling <code>closure</code> passing it the current
+     * file (which may be a normal file or subdirectory) and then if a subdirectory was encountered,
+     * recursively processing the subdirectory.
+     *
      * The traversal can be adapted by providing various options in the <code>options</code> Map according
      * to the following keys:<dl>
      * <dt>type</dt><dd>A {@link groovy.io.FileType} enum to determine if normal files or directories or both are processed</dd>
@@ -887,7 +1009,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * ) {it -> totalSize += it.size(); count++ }
      * </pre>
      *
-     * @param self    a Path
+     * @param self    a Path (that happens to be a folder/directory)
      * @param options a Map of options to alter the traversal behavior
      * @param closure the Closure to invoke on each file/directory and optionally returning a {@link groovy.io.FileVisitResult} value
      *                which can be used to control subsequent processing
@@ -964,12 +1086,11 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Invokes the closure for each descendant file in this directory tree.
-     * Sub-directories are recursively traversed in a depth-first fashion.
+     * Processes each descendant file in this directory and any sub-directories.
      * Convenience method for {@link #traverse(Path, java.util.Map, groovy.lang.Closure)} when
      * no options to alter the traversal behavior are required.
      *
-     * @param self    a Path
+     * @param self    a Path (that happens to be a folder/directory)
      * @param closure the Closure to invoke on each file/directory and optionally returning a {@link groovy.io.FileVisitResult} value
      *                which can be used to control subsequent processing
      * @throws java.io.FileNotFoundException    if the given directory does not exist
@@ -988,7 +1109,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * for {@link #traverse(Path, java.util.Map, groovy.lang.Closure)} allowing the 'visit' closure
      * to be included in the options Map rather than as a parameter.
      *
-     * @param self    a Path
+     * @param self    a Path (that happens to be a folder/directory)
      * @param options a Map of options to alter the traversal behavior
      * @throws java.io.FileNotFoundException    if the given directory does not exist
      * @throws IllegalArgumentException if the provided Path object does not represent a directory or illegal filter combinations are supplied
@@ -1020,7 +1141,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
                 files.add(itr.next());
             }
 
-            if (sort != null) files = DefaultGroovyMethods.sort(files, sort);
+            if (sort != null) files = DefaultGroovyMethods.sort((Iterable<Path>)files, sort);
 
             for (Path path : files) {
                 if (Files.isDirectory(path)) {
@@ -1063,12 +1184,13 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Invokes the closure for each descendant file in this directory.
-     * Sub-directories are recursively searched in a depth-first fashion.
-     * Both regular files and subdirectories are passed to the closure.
+     * Processes each descendant file in this directory and any sub-directories.
+     * Processing consists of calling <code>closure</code> passing it the current
+     * file (which may be a normal file or subdirectory) and then if a subdirectory was encountered,
+     * recursively processing the subdirectory.
      *
-     * @param self    a Path
-     * @param closure a closure
+     * @param self    a Path (that happens to be a folder/directory)
+     * @param closure a Closure
      * @throws java.io.FileNotFoundException    if the given directory does not exist
      * @throws IllegalArgumentException if the provided Path object does not represent a directory
      * @see #eachFileRecurse(Path, groovy.io.FileType, groovy.lang.Closure)
@@ -1079,11 +1201,12 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Invokes the closure for each descendant directory of this directory.
-     * Sub-directories are recursively searched in a depth-first fashion.
-     * Only subdirectories are passed to the closure; regular files are ignored.
+     * Recursively processes each descendant subdirectory in this directory.
+     * Processing consists of calling <code>closure</code> passing it the current
+     * subdirectory and then recursively processing that subdirectory.
+     * Regular files are ignored during traversal.
      *
-     * @param self    a directory
+     * @param self    a Path (that happens to be a folder/directory)
      * @param closure a closure
      * @throws java.io.FileNotFoundException    if the given directory does not exist
      * @throws IllegalArgumentException if the provided Path object does not represent a directory
@@ -1114,7 +1237,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * baseDir.eachFileMatch FILES, { new Path(baseDir, it).size() > 4096 }, { println "$it.name ${it.size()}" }
      * </pre>
      *
-     * @param self       a file
+     * @param self       a Path (that happens to be a folder/directory)
      * @param fileType   whether normal files or directories or both should be processed
      * @param nameFilter the filter to perform on the name of the file/directory (using the {@link org.codehaus.groovy.runtime.DefaultGroovyMethods#isCase(Object, Object)} method)
      * @param closure    the closure to invoke
@@ -1145,7 +1268,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * with different kinds of filters like regular expressions, classes, ranges etc.
      * Both regular files and subdirectories are matched.
      *
-     * @param self       a file
+     * @param self       a Path (that happens to be a folder/directory)
      * @param nameFilter the nameFilter to perform on the name of the file (using the {@link org.codehaus.groovy.runtime.DefaultGroovyMethods#isCase(Object, Object)} method)
      * @param closure    the closure to invoke
      * @throws java.io.FileNotFoundException    if the given directory does not exist
@@ -1164,7 +1287,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * with different kinds of filters like regular expressions, classes, ranges etc.
      * Only subdirectories are matched; regular files are ignored.
      *
-     * @param self       a file
+     * @param self       a Path (that happens to be a folder/directory)
      * @param nameFilter the nameFilter to perform on the name of the directory (using the {@link org.codehaus.groovy.runtime.DefaultGroovyMethods#isCase(Object, Object)} method)
      * @param closure    the closure to invoke
      * @throws java.io.FileNotFoundException    if the given directory does not exist
@@ -1340,7 +1463,8 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     /**
      * Create a new BufferedReader for this file using the specified charset and then
      * passes it into the closure, ensuring the reader is closed after the
-     * closure returns.
+     * closure returns.  The writer will use the given charset encoding,
+     * but will not write a BOM.
      *
      * @param self    a file object
      * @param charset the charset for this input stream
@@ -1467,7 +1591,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     }
 
     /**
-     * Helper method to create a buffered writer for a file.
+     * Helper method to create a buffered writer for a file without writing a BOM.
      *
      * @param self    a Path
      * @param charset the name of the encoding used to write in this file
@@ -1477,14 +1601,42 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static BufferedWriter newWriter(Path self, String charset, boolean append) throws IOException {
-        if (append) {
-            return Files.newBufferedWriter(self, Charset.forName(charset), CREATE, APPEND);
-        }
-        return Files.newBufferedWriter(self, Charset.forName(charset));
+        return newWriter(self, charset, append, false);
     }
 
     /**
-     * Creates a buffered writer for this file, writing data using the given
+     * Helper method to create a buffered writer for a file.  If the given
+     * charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias), the
+     * requisite byte order mark is written to the stream before the writer
+     * is returned.
+     *
+     * @param self     a Path
+     * @param charset  the name of the encoding used to write in this file
+     * @param append   true if in append mode
+     * @param writeBom whether to write a BOM
+     * @return a BufferedWriter
+     * @throws java.io.IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static BufferedWriter newWriter(Path self, String charset, boolean append, boolean writeBom) throws IOException {
+        boolean shouldWriteBom = writeBom && !self.toFile().exists();
+        if (append) {
+            BufferedWriter writer = Files.newBufferedWriter(self, Charset.forName(charset), CREATE, APPEND);
+            if (shouldWriteBom) {
+                IOGroovyMethods.writeUTF16BomIfRequired(writer, charset);
+            }
+            return writer;
+        } else {
+            OutputStream out = Files.newOutputStream(self);
+            if (shouldWriteBom) {
+                IOGroovyMethods.writeUTF16BomIfRequired(out, charset);
+            }
+            return new BufferedWriter(new OutputStreamWriter(out, Charset.forName(charset)));
+        }
+    }
+
+    /**
+     * Creates a buffered writer for this file without writing a BOM, writing data using the given
      * encoding.
      *
      * @param self    a Path
@@ -1500,6 +1652,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     /**
      * Creates a new BufferedWriter for this file, passes it to the closure, and
      * ensures the stream is flushed and closed after the closure returns.
+     * The writer will not write a BOM.
      *
      * @param self    a Path
      * @param closure a closure
@@ -1508,13 +1661,13 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static <T> T withWriter(Path self, @ClosureParams(value = SimpleType.class, options = "java.io.Writer") Closure<T> closure) throws IOException {
-        return IOGroovyMethods.withWriter(newWriter(self), closure);
+        return withWriter(self, Charset.defaultCharset().name(), closure);
     }
 
     /**
      * Creates a new BufferedWriter for this file, passes it to the closure, and
      * ensures the stream is flushed and closed after the closure returns.
-     * The writer will use the given charset encoding.
+     * The writer will use the given charset encoding, but will not write a BOM.
      *
      * @param self    a Path
      * @param charset the charset used
@@ -1524,13 +1677,34 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static <T> T withWriter(Path self, String charset, @ClosureParams(value = SimpleType.class, options = "java.io.Writer") Closure<T> closure) throws IOException {
-        return IOGroovyMethods.withWriter(newWriter(self, charset), closure);
+        return withWriter(self, charset, false, closure);
+    }
+
+    /**
+     * Creates a new BufferedWriter for this file, passes it to the closure, and
+     * ensures the stream is flushed and closed after the closure returns.
+     * The writer will use the given charset encoding.  If the given charset is
+     * "UTF-16BE" or "UTF-16LE" (or an equivalent alias), <code>writeBom</code>
+     * is <code>true</code>, and the file doesn't already exist, the requisite
+     * byte order mark is written to the stream when the writer is created.
+     *
+     * @param self    a Path
+     * @param charset the charset used
+     * @param writeBom whether to write the BOM
+     * @param closure a closure
+     * @return the value returned by the closure
+     * @throws java.io.IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static <T> T withWriter(Path self, String charset, boolean writeBom, @ClosureParams(value = SimpleType.class, options = "java.io.Writer") Closure<T> closure) throws IOException {
+        return IOGroovyMethods.withWriter(newWriter(self, charset, false, writeBom), closure);
     }
 
     /**
      * Create a new BufferedWriter which will append to this
      * file.  The writer is passed to the closure and will be closed before
-     * this method returns.
+     * this method returns.  The writer will use the given charset encoding,
+     * but will not write a BOM.
      *
      * @param self    a Path
      * @param charset the charset used
@@ -1540,12 +1714,33 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static <T> T withWriterAppend(Path self, String charset, @ClosureParams(value = SimpleType.class, options = "java.io.Writer") Closure<T> closure) throws IOException {
-        return IOGroovyMethods.withWriter(newWriter(self, charset, true), closure);
+        return withWriterAppend(self, charset, false, closure);
+    }
+
+    /**
+     * Create a new BufferedWriter which will append to this
+     * file.  The writer is passed to the closure and will be closed before
+     * this method returns.  The writer will use the given charset encoding.
+     * If the given charset is "UTF-16BE" or "UTF-16LE" (or an equivalent alias),
+     * <code>writeBom</code> is <code>true</code>, and the file doesn't already exist,
+     * the requisite byte order mark is written to the stream when the writer is created.
+     *
+     * @param self    a Path
+     * @param charset the charset used
+     * @param writeBom whether to write the BOM
+     * @param closure a closure
+     * @return the value returned by the closure
+     * @throws java.io.IOException if an IOException occurs.
+     * @since 2.5.0
+     */
+    public static <T> T withWriterAppend(Path self, String charset, boolean writeBom, @ClosureParams(value = SimpleType.class, options = "java.io.Writer") Closure<T> closure) throws IOException {
+        return IOGroovyMethods.withWriter(newWriter(self, charset, true, writeBom), closure);
     }
 
     /**
      * Create a new BufferedWriter for this file in append mode.  The writer
      * is passed to the closure and is closed after the closure returns.
+     * The writer will not write a BOM.
      *
      * @param self    a Path
      * @param closure a closure
@@ -1554,7 +1749,7 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
      * @since 2.3.0
      */
     public static <T> T withWriterAppend(Path self, @ClosureParams(value = SimpleType.class, options = "java.io.Writer") Closure<T> closure) throws IOException {
-        return IOGroovyMethods.withWriter(newWriter(self, true), closure);
+        return withWriterAppend(self, Charset.defaultCharset().name(), closure);
     }
 
     /**
@@ -1754,4 +1949,5 @@ public class NioGroovyMethods extends DefaultGroovyMethodsSupport {
     public static <T> T withCloseable(Closeable self, @ClosureParams(value = SimpleType.class, options = "java.io.Closeable") Closure<T> action) throws IOException {
         return IOGroovyMethods.withCloseable(self, action);
     }
+
 }

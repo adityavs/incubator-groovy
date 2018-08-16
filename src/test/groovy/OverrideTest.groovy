@@ -142,4 +142,78 @@ def d = new Derived()
         """
         assert message.contains("Method 'methodTakesObject' from class 'HasMethodWithBadArgType' does not override method from its superclass or interfaces but is annotated with @Override.")
     }
+
+    void testOverrideOnMethodWithDefaultParameters() {
+        assertScript '''
+            interface TemplatedInterface {
+                String execute(Map argument)
+            }
+
+            class TemplatedInterfaceImplementation implements TemplatedInterface {
+                @Override
+                String execute(Map argument = [:]) {
+                    return null
+                }
+            }
+            new TemplatedInterfaceImplementation()
+        '''
+    }
+
+    void testOverrideOnMethodWithDefaultParametersVariant() {
+        assertScript '''
+            interface TemplatedInterface {
+                String execute(Map argument)
+            }
+
+            class TemplatedInterfaceImplementation implements TemplatedInterface {
+                @Override
+                String execute(Map argument, String foo = null) {
+                    return foo
+                }
+            }
+            new TemplatedInterfaceImplementation()
+        '''
+    }
+
+    //GROOVY-7849
+    void testArrayReturnTypeCovariance() {
+        assertScript '''
+            interface Base {}
+
+            interface Derived extends Base {}
+
+            interface I {
+                Base[] foo()
+            }
+
+            class C implements I {
+                Derived[] foo() { null }
+            }
+            new C().foo()
+        '''
+    }
+
+    //GROOVY-7185
+    void testArrayReturnTypeCovarianceGenericsVariant() {
+        assertScript '''
+            interface A<T> {
+                T[] process();
+            }
+
+            class B implements A<String> {
+                @Override
+                public String[] process() {
+                    ['foo']
+                }
+            }
+
+            class C extends B {
+                @Override
+                String[] process() {
+                    super.process()
+                }
+            }
+            assert new C().process()[0] == 'foo'
+        '''
+    }
 }

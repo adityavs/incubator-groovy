@@ -18,16 +18,30 @@
  */
 package org.codehaus.groovy.transform;
 
-import org.codehaus.groovy.ast.*;
-import org.codehaus.groovy.ast.expr.ArgumentListExpression;
-import org.codehaus.groovy.ast.expr.ConstantExpression;
-import org.codehaus.groovy.ast.expr.ConstructorCallExpression;
-import org.codehaus.groovy.ast.stmt.*;
+import org.codehaus.groovy.ast.ASTNode;
+import org.codehaus.groovy.ast.AnnotatedNode;
+import org.codehaus.groovy.ast.AnnotationNode;
+import org.codehaus.groovy.ast.ClassHelper;
+import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.MethodNode;
+import org.codehaus.groovy.ast.stmt.BlockStatement;
+import org.codehaus.groovy.ast.stmt.EmptyStatement;
+import org.codehaus.groovy.ast.stmt.ReturnStatement;
+import org.codehaus.groovy.ast.stmt.Statement;
+import org.codehaus.groovy.ast.stmt.TryCatchStatement;
 import org.codehaus.groovy.control.CompilePhase;
 import org.codehaus.groovy.control.SourceUnit;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import static org.codehaus.groovy.ast.tools.GeneralUtils.args;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.block;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.catchS;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.constX;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.ctorX;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.param;
+import static org.codehaus.groovy.ast.tools.GeneralUtils.throwS;
 
 /**
  * Handles generation of code for the {@code @NotYetImplemented} annotation.
@@ -66,7 +80,7 @@ public class NotYetImplementedASTTransformation extends AbstractASTTransformatio
             statements.addAll(((BlockStatement) statement).getStatements());
         }
 
-        if (statements.size() == 0) return;
+        if (statements.isEmpty()) return;
 
         BlockStatement rewrittenMethodCode = new BlockStatement();
 
@@ -77,17 +91,17 @@ public class NotYetImplementedASTTransformation extends AbstractASTTransformatio
     }
 
     private TryCatchStatement tryCatchAssertionFailedError(AnnotationNode annotationNode, MethodNode methodNode, ArrayList<Statement> statements) {
-        TryCatchStatement tryCatchStatement = new TryCatchStatement(new BlockStatement(statements, methodNode.getVariableScope()), EmptyStatement.INSTANCE);
-        tryCatchStatement.addCatch(new CatchStatement(new Parameter(CATCHED_THROWABLE_TYPE, "ex"), ReturnStatement.RETURN_NULL_OR_VOID));
+        TryCatchStatement tryCatchStatement = new TryCatchStatement(
+                block(methodNode.getVariableScope(), statements),
+                EmptyStatement.INSTANCE);
+        tryCatchStatement.addCatch(catchS(param(CATCHED_THROWABLE_TYPE, "ex"), ReturnStatement.RETURN_NULL_OR_VOID));
         return tryCatchStatement;
     }
 
     private Statement throwAssertionFailedError(AnnotationNode annotationNode) {
-        ThrowStatement throwStatement = new ThrowStatement(
-                new ConstructorCallExpression(ASSERTION_FAILED_ERROR_TYPE,
-                        new ArgumentListExpression(
-                                new ConstantExpression("Method is marked with @NotYetImplemented but passes unexpectedly"))));
-
+        Statement throwStatement = throwS(
+                ctorX(ASSERTION_FAILED_ERROR_TYPE,
+                        args(constX("Method is marked with @NotYetImplemented but passes unexpectedly"))));
         throwStatement.setSourcePosition(annotationNode);
 
         return throwStatement;

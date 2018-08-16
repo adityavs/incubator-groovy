@@ -34,7 +34,11 @@ import org.codehaus.groovy.tools.groovydoc.gstringTemplates.GroovyDocTemplateInf
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
+import java.util.StringTokenizer;
 
 /**
  * Access to the GroovyDoc tool from Ant.
@@ -44,8 +48,8 @@ public class Groovydoc extends Task {
 
     private Path sourcePath;
     private File destDir;
-    private List<String> packageNames;
-    private List<String> excludePackageNames;
+    private final List<String> packageNames;
+    private final List<String> excludePackageNames;
     private String windowTitle = "Groovy Documentation";
     private String docTitle = "Groovy Documentation";
     private String footer = "Groovy Documentation";
@@ -59,9 +63,11 @@ public class Groovydoc extends Task {
     private Boolean includeMainForScripts;
     private boolean useDefaultExcludes;
     private boolean includeNoSourcePackages;
-    private List<DirSet> packageSets;
-    private List<String> sourceFilesToDoc;
-    private List<LinkArgument> links = new ArrayList<LinkArgument>();
+    private Boolean noTimestamp;
+    private Boolean noVersionStamp;
+    private final List<DirSet> packageSets;
+    private final List<String> sourceFilesToDoc;
+    private final List<LinkArgument> links = new ArrayList<LinkArgument>();
     private File overviewFile;
     private File styleSheetFile;
     // dev note: update javadoc comment for #setExtensions(String) if updating below
@@ -84,6 +90,8 @@ public class Groovydoc extends Task {
         author = true;
         processScripts = true;
         includeMainForScripts = true;
+        noTimestamp = false;
+        noVersionStamp = false;
     }
 
     /**
@@ -117,6 +125,24 @@ public class Groovydoc extends Task {
      */
     public void setAuthor(boolean author) {
         this.author = author;
+    }
+
+    /**
+     * If set to true, hidden timestamp will not appear within generated HTML.
+     *
+     * @param noTimestamp new value
+     */
+    public void setNoTimestamp(boolean noTimestamp) {
+        this.noTimestamp = noTimestamp;
+    }
+
+    /**
+     * If set to true, hidden version stamp will not appear within generated HTML.
+     *
+     * @param noVersionStamp new value
+     */
+    public void setNoVersionStamp(boolean noVersionStamp) {
+        this.noVersionStamp = noVersionStamp;
     }
 
     /**
@@ -319,7 +345,7 @@ public class Groovydoc extends Task {
         // and nested excludepackage elements
         if (this.sourcePath != null) {
             PatternSet ps = new PatternSet();
-            if (packageNames.size() > 0) {
+            if (!packageNames.isEmpty()) {
                 for (String pn : packageNames) {
                     String pkg = pn.replace('.', '/');
                     if (pkg.endsWith("*")) {
@@ -376,7 +402,7 @@ public class Groovydoc extends Task {
                     }
                 });
 
-                for (String filename : Arrays.asList(files)) {
+                for (String filename : files) {
                     sourceFilesToDoc.add(dir + File.separator + filename);
                 }
 
@@ -424,6 +450,8 @@ public class Groovydoc extends Task {
         properties.setProperty("overviewFile", overviewFile != null ? overviewFile.getAbsolutePath() : "");
         properties.setProperty("charset", charset != null ? charset : "");
         properties.setProperty("fileEncoding", fileEncoding != null ? fileEncoding : "");
+        properties.setProperty("timestamp", Boolean.valueOf(!noTimestamp).toString());
+        properties.setProperty("versionStamp", Boolean.valueOf(!noVersionStamp).toString());
 
         if (sourcePath != null) {
             sourceDirs.addExisting(sourcePath);

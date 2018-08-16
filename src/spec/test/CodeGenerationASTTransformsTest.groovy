@@ -149,6 +149,26 @@ assert bono.toString() == 'BandMember(bandName:U2, name:Bono)'
 '''
 
         assertScript '''
+import groovy.transform.*
+
+// tag::tostring_example_includeSuperFields[]
+class Person {
+    protected String name
+}
+
+@ToString(includeSuperFields = true, includeNames = true)
+@MapConstructor(includeSuperFields = true)
+class BandMember extends Person {
+    String bandName
+}
+
+def bono = new BandMember(name:'Bono', bandName: 'U2').toString()
+
+assert bono.toString() == 'BandMember(bandName:U2, name:Bono)'
+// end::tostring_example_includeSuperFields[]
+'''
+
+        assertScript '''
 import groovy.transform.ToString
 
 // tag::tostring_example_ignoreNulls[]
@@ -214,6 +234,20 @@ assert p.toString() == 'acme.Person(firstName:Jack, lastName:Nicholson)'
 
 '''
 
+        assertScript '''package acme
+import groovy.transform.ToString
+
+// tag::tostring_example_allNames[]
+@ToString(allNames=true)
+class Person {
+    String $firstName
+}
+
+def p = new Person($firstName: "Jack")
+assert p.toString() == 'acme.Person(Jack)'
+// end::tostring_example_allNames[]
+
+'''
     }
 
 
@@ -298,6 +332,95 @@ assert p1.hashCode() != p2.hashCode()
 // end::equalshashcode_example_super[]
 
 '''
+
+        assertScript '''
+import groovy.transform.EqualsAndHashCode
+
+// tag::equalshashcode_example_allProperties[]
+@EqualsAndHashCode(allProperties=true, excludes='first, last')
+class Person {
+    String first, last
+    String getInitials() { first[0] + last[0] }
+}
+
+def p1 = new Person(first: 'Jack', last: 'Smith')
+def p2 = new Person(first: 'Jack', last: 'Spratt')
+def p3 = new Person(first: 'Bob', last: 'Smith')
+
+assert p1 == p2
+assert p1.hashCode() == p2.hashCode()
+assert p1 != p3
+assert p1.hashCode() != p3.hashCode()
+// end::equalshashcode_example_allProperties[]
+'''
+
+        assertScript '''
+// tag::equalshashcode_example_allNames[]
+import groovy.transform.EqualsAndHashCode
+
+@EqualsAndHashCode(allNames=true)
+class Person {
+    String $firstName
+}
+
+def p1 = new Person($firstName: 'Jack')
+def p2 = new Person($firstName: 'Bob')
+
+assert p1 != p2
+assert p1.hashCode() != p2.hashCode()
+// end::equalshashcode_example_allNames[]
+
+'''
+
+        assertScript '''
+// tag::equalshashcode_example_includeFields[]
+import groovy.transform.EqualsAndHashCode
+
+@EqualsAndHashCode(includeFields=true)
+class Person {
+    private String firstName
+
+    Person(String firstName) {
+        this.firstName = firstName
+    }
+}
+
+def p1 = new Person('Jack')
+def p2 = new Person('Jack')
+def p3 = new Person('Bob')
+
+assert p1 == p2
+assert p1 != p3
+// end::equalshashcode_example_includeFields[]
+'''
+
+        assertScript '''
+// tag::equalshashcode_example_cache[]
+import groovy.transform.EqualsAndHashCode
+import groovy.transform.Immutable
+
+@Immutable
+class SlowHashCode {
+    int hashCode() {
+        sleep 100
+        127
+    }
+}
+
+@EqualsAndHashCode(cache=true)
+@Immutable
+class Person {
+    SlowHashCode slowHashCode = new SlowHashCode()
+}
+
+def p = new Person()
+p.hashCode()
+
+def start = System.currentTimeMillis()
+p.hashCode()
+assert System.currentTimeMillis() - start < 100
+// end::equalshashcode_example_cache[]
+'''
     }
 
     void testTupleConstructor() {
@@ -317,7 +440,6 @@ def p1 = new Person(firstName: 'Jack', lastName: 'Nicholson')
 def p2 = new Person('Jack', 'Nicholson')
 // generated tuple constructor with default value for second property
 def p3 = new Person('Jack')
-
 // end::tupleconstructor_simple[]
 
 assert p1.firstName == p2.firstName
@@ -535,6 +657,24 @@ assert new Person('john', 'smith').toString() == 'Person(john smith)'
 '''
 
         assertScript '''
+import groovy.transform.TupleConstructor
+
+// tag::tupleconstructor_example_allProperties[]
+@TupleConstructor(allProperties=true)
+class Person {
+    String first
+    private String last
+    void setLast(String last) {
+        this.last = last
+    }
+    String getName() { "$first $last" }
+}
+
+assert new Person('john', 'smith').name == 'john smith'
+// end::tupleconstructor_example_allProperties[]
+'''
+
+        assertScript '''
 // tag::tupleconstructor_example_useSetters[]
 import groovy.transform.*
 
@@ -579,6 +719,128 @@ assert new Musician('Jimi', 'Guitar', 1942).toString() == 'Musician(Jimi, Guitar
 assert Musician.constructors.size() == 1
 // end::tupleconstructor_example_defaults_false[]
 '''
+
+        assertScript '''
+import groovy.transform.*
+// tag::tupleconstructor_example_defaults_multiple[]
+class Named {
+  String name
+}
+
+@ToString(includeSuperProperties=true, ignoreNulls=true, includeNames=true, includeFields=true)
+@TupleConstructor(force=true, defaults=false)
+@TupleConstructor(force=true, defaults=false, includeFields=true)
+@TupleConstructor(force=true, defaults=false, includeSuperProperties=true)
+class Book extends Named {
+  Integer published
+  private Boolean fiction
+  Book() {}
+}
+
+assert new Book("Regina", 2015).toString() == 'Book(published:2015, name:Regina)'
+assert new Book(2015, false).toString() == 'Book(published:2015, fiction:false)'
+assert new Book(2015).toString() == 'Book(published:2015)'
+assert new Book().toString() == 'Book()'
+assert Book.constructors.size() == 4
+// end::tupleconstructor_example_defaults_multiple[]
+'''
+
+        assertScript '''
+import groovy.transform.*
+// tag::tupleconstructor_example_defaults_multipleIncludes[]
+@ToString(includeSuperProperties=true, ignoreNulls=true, includeNames=true, includeFields=true)
+@TupleConstructor(force=true, defaults=false, includes='name,year')
+@TupleConstructor(force=true, defaults=false, includes='year,fiction')
+@TupleConstructor(force=true, defaults=false, includes='name,fiction')
+class Book {
+    String name
+    Integer year
+    Boolean fiction
+}
+
+assert new Book("Regina", 2015).toString() == 'Book(name:Regina, year:2015)'
+assert new Book(2015, false).toString() == 'Book(year:2015, fiction:false)'
+assert new Book("Regina", false).toString() == 'Book(name:Regina, fiction:false)'
+assert Book.constructors.size() == 3
+// end::tupleconstructor_example_defaults_multipleIncludes[]
+'''
+
+        assertScript '''
+// tag::tupleconstructor_example_allNames[]
+import groovy.transform.TupleConstructor
+
+@TupleConstructor(allNames=true)
+class Person {
+    String $firstName
+}
+
+def p = new Person('Jack')
+
+assert p.$firstName == 'Jack'
+// end::tupleconstructor_example_allNames[]
+'''
+
+        assertScript '''
+// tag::tupleconstructor_example_pre[]
+import groovy.transform.TupleConstructor
+
+@TupleConstructor(pre={ first = first?.toLowerCase() })
+class Person {
+    String first
+}
+
+def p = new Person('Jack')
+
+assert p.first == 'jack'
+// end::tupleconstructor_example_pre[]
+'''
+
+        assertScript '''
+// tag::tupleconstructor_example_post[]
+import groovy.transform.TupleConstructor
+import static groovy.test.GroovyAssert.shouldFail
+
+@TupleConstructor(post={ assert first })
+class Person {
+    String first
+}
+
+def jack = new Person('Jack')
+shouldFail {
+  def unknown = new Person()
+}
+// end::tupleconstructor_example_post[]
+'''
+    }
+
+    void testMapConstructor() {
+        assertScript '''
+// tag::mapconstructor_simple[]
+import groovy.transform.*
+
+@ToString
+@MapConstructor
+class Person {
+    String firstName
+    String lastName
+}
+
+def p1 = new Person(firstName: 'Jack', lastName: 'Nicholson')
+assert p1.toString() == 'Person(Jack, Nicholson)'
+// end::mapconstructor_simple[]
+        '''
+/*
+// tag::mapconstructor_equiv[]
+public Person(Map args) {
+    if (args.containsKey('firstName')) {
+        this.firstName = args.get('firstName')
+    }
+    if (args.containsKey('lastName')) {
+        this.lastName = args.get('lastName')
+    }
+}
+// end::mapconstructor_equiv[]
+*/
     }
 
     void testCanonical() {
@@ -950,6 +1212,81 @@ public int compareTo(java.lang.Object obj) {
 // end::sortable_custom_generated_compareTo[]
 */
         '''
+
+        assertScript '''
+import groovy.transform.*
+
+// tag::sortable_example_superProperties[]
+class Person {
+  String name
+}
+
+@Canonical(includeSuperProperties = true)
+@Sortable(includeSuperProperties = true)
+class Citizen extends Person {
+  String country
+}
+
+def people = [
+  new Citizen('Bob', 'Italy'),
+  new Citizen('Cathy', 'Hungary'),
+  new Citizen('Cathy', 'Egypt'),
+  new Citizen('Bob', 'Germany'),
+  new Citizen('Alan', 'France')
+]
+
+assert people.sort()*.name == ['Alan', 'Bob', 'Bob', 'Cathy', 'Cathy']
+assert people.sort()*.country == ['France', 'Germany', 'Italy', 'Egypt', 'Hungary']
+// end::sortable_example_superProperties[]
+        '''
+
+        assertScript '''
+import groovy.transform.*
+
+// tag::sortable_example_allNames[]
+import groovy.transform.*
+
+@Canonical(allNames = true)
+@Sortable(allNames = false)
+class Player {
+  String $country
+  String name
+}
+
+def finalists = [
+  new Player('USA', 'Serena'),
+  new Player('USA', 'Venus'),
+  new Player('USA', 'CoCo'),
+  new Player('Croatian', 'Mirjana')
+]
+
+assert finalists.sort()*.name == ['Mirjana', 'CoCo', 'Serena', 'Venus']
+// end::sortable_example_allNames[]
+        '''
+
+        assertScript '''
+import groovy.transform.*
+
+// tag::sortable_example_allProperties[]
+import groovy.transform.*
+
+@Canonical(includeFields = true)
+@Sortable(allProperties = true, includes = 'nameSize')
+class Player {
+  String name
+  int getNameSize() { name.size() }
+}
+
+def finalists = [
+  new Player('Serena'),
+  new Player('Venus'),
+  new Player('CoCo'),
+  new Player('Mirjana')
+]
+
+assert finalists.sort()*.name == ['CoCo', 'Venus', 'Serena', 'Mirjana']
+// end::sortable_example_allProperties[]
+        '''
     }
 
     void testBuilderSimple() {
@@ -1172,14 +1509,19 @@ firstLastAge()
 // tag::builder_initializer_immutable[]
 import groovy.transform.builder.*
 import groovy.transform.*
+import static groovy.transform.options.Visibility.PRIVATE
 
 @Builder(builderStrategy=InitializerStrategy)
 @Immutable
+@VisibilityOptions(PRIVATE)
 class Person {
     String first
     String last
     int born
 }
+
+def publicCons = Person.constructors
+assert publicCons.size() == 1
 
 @CompileStatic
 def createFirstLastBorn() {
@@ -1189,6 +1531,146 @@ def createFirstLastBorn() {
 
 createFirstLastBorn()
 // end::builder_initializer_immutable[]
+        '''
+    }
+
+    void testAutoImplement() {
+        assertScript '''
+// tag::autoimplement_default[]
+import groovy.transform.AutoImplement
+
+@AutoImplement
+class MyNames extends AbstractList<String> implements Closeable { }
+// end::autoimplement_default[]
+
+// tag::autoimplement_default_usage[]
+assert new MyNames().size() == 0
+// end::autoimplement_default_usage[]
+
+/*
+// tag::autoimplement_default_equiv[]
+class MyNames implements Closeable extends AbstractList<String> {
+
+    String get(int param0) {
+        return null
+    }
+
+    boolean addAll(Collection<? extends String> param0) {
+        return false
+    }
+
+    void close() throws Exception {
+    }
+
+    int size() {
+        return 0
+    }
+
+}
+// end::autoimplement_default_equiv[]
+*/
+        '''
+
+        assertScript '''
+import groovy.transform.AutoImplement
+// tag::autoimplement_exception[]
+@AutoImplement(exception=IOException)
+class MyWriter extends Writer { }
+// end::autoimplement_exception[]
+
+// tag::autoimplement_exception_usage[]
+import static groovy.test.GroovyAssert.shouldFail
+
+shouldFail(IOException) {
+  new MyWriter().flush()
+}
+// end::autoimplement_exception_usage[]
+
+/*
+// tag::autoimplement_exception_equiv[]
+class MyWriter extends Writer {
+
+    void flush() throws IOException {
+        throw new IOException()
+    }
+
+    void write(char[] param0, int param1, int param2) throws IOException {
+        throw new IOException()
+    }
+
+    void close() throws Exception {
+        throw new IOException()
+    }
+
+}
+// end::autoimplement_exception_equiv[]
+*/
+        '''
+
+        assertScript '''
+import groovy.transform.AutoImplement
+// tag::autoimplement_exceptionmsg[]
+@AutoImplement(exception=UnsupportedOperationException, message='Not supported by MyIterator')
+class MyIterator implements Iterator<String> { }
+// end::autoimplement_exceptionmsg[]
+
+import static groovy.test.GroovyAssert.shouldFail
+// tag::autoimplement_exceptionmsg_usage[]
+def ex = shouldFail(UnsupportedOperationException) {
+     new MyIterator().hasNext()
+}
+assert ex.message == 'Not supported by MyIterator'
+// end::autoimplement_exceptionmsg_usage[]
+
+/*
+// tag::autoimplement_exceptionmsg_equiv[]
+class MyIterator implements Iterator<String> {
+
+    boolean hasNext() {
+        throw new UnsupportedOperationException('Not supported by MyIterator')
+    }
+
+    String next() {
+        throw new UnsupportedOperationException('Not supported by MyIterator')
+    }
+
+}
+// end::autoimplement_exceptionmsg_equiv[]
+*/
+        '''
+
+        assertScript '''
+import groovy.transform.AutoImplement
+// tag::autoimplement_code[]
+@AutoImplement(code = { throw new UnsupportedOperationException('Should never be called but was called on ' + new Date()) })
+class EmptyIterator implements Iterator<String> {
+    boolean hasNext() { false }
+}
+// end::autoimplement_code[]
+
+import static groovy.test.GroovyAssert.shouldFail
+// tag::autoimplement_code_usage[]
+def ex = shouldFail(UnsupportedOperationException) {
+     new EmptyIterator().next()
+}
+assert ex.message.startsWith('Should never be called but was called on ')
+// end::autoimplement_code_usage[]
+
+/*
+// tag::autoimplement_code_equiv[]
+class EmptyIterator implements java.util.Iterator<String> {
+
+    boolean hasNext() {
+        false
+    }
+
+    String next() {
+        throw new UnsupportedOperationException('Should never be called but was called on ' + new Date())
+    }
+
+}
+// end::autoimplement_code_equiv[]
+*/
         '''
     }
 }

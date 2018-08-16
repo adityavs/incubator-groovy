@@ -19,6 +19,7 @@
 package groovy.bugs;
 
 import groovy.util.GroovyTestCase;
+import org.junit.Ignore;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -28,6 +29,7 @@ import java.util.Iterator;
  *
  * @author <a href="mailto:james@coredevelopers.net">James Strachan</a>
  */
+@Ignore("base class for tests")
 public abstract class TestSupport extends GroovyTestCase {
 
     public String[] getMockArguments() {
@@ -47,8 +49,6 @@ public abstract class TestSupport extends GroovyTestCase {
     }
 
     public Iterator iterator() {
-        System.out.println("Calling custom iterator() method for " + this);
-
         return Arrays.asList(getMockArguments()).iterator();
     }
 }

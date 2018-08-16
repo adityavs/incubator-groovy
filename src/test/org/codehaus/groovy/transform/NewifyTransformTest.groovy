@@ -19,7 +19,7 @@
 package org.codehaus.groovy.transform
 
 /**
- * @author Paul King
+ * Tests for the {@code @Newify} AST transform.
  */
 class NewifyTransformTest extends GroovyShellTestCase {
 
@@ -156,5 +156,83 @@ class NewifyTransformTest extends GroovyShellTestCase {
             test()
         '''
         assert test == 'ABC'
+    }
+
+    void testNewifyClosureCompileStatic_Groovy7758() {
+        assertScript '''
+            class A {
+                String foo() { 'abc' }
+            }
+
+            @groovy.transform.CompileStatic
+            @Newify
+            String test(A arg) {
+                Closure<String> cl = { A it -> it.foo() }
+                cl.call(arg)
+            }
+
+            assert test(new A()) == 'abc'
+        '''
+    }
+
+    void testNewifyTransformPreservesSafeMethodCall_Groovy8203() {
+        assertScript '''
+            @Newify(A)
+            class Z {
+                def foo() {
+                    def a
+                    a?.get('b')
+                }
+                class A {}
+            }
+
+            assert !new Z().foo()
+        '''
+    }
+
+    // GROOVY-8245
+    void testDeclarationWhenAutoIsFalse() {
+        assertScript '''
+            class Foo {
+                static int answer = 7
+                Foo() {
+                    answer = 42
+                }
+            }
+            @Newify(auto=false, value=Foo)
+            class Bar {
+                static {
+                    Foo foo = Foo()
+                }
+                static void method() {}
+            }
+            assert Foo.answer == 7
+            Bar.method()
+            assert Foo.answer == 42
+        '''
+    }
+
+    // GROOVY-8249
+    void testLocalVariableDeclResolvesClass() {
+        assertScript '''
+            class A {
+                final int id
+                A(int id) { this.id = id + 10 }
+            }
+            class Foo {
+                static String test() {
+                    @Newify(String)
+                    String answer = String('bar')
+                    answer
+                }
+                static int test2() {
+                    @Newify(A)
+                    int answer = A(32).id
+                    answer
+                } 
+            }
+            assert Foo.test() == 'bar'
+            assert Foo.test2() == 42
+        '''
     }
 }

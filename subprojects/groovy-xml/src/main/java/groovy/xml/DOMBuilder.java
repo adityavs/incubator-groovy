@@ -19,23 +19,21 @@
 package groovy.xml;
 
 import groovy.util.BuilderSupport;
-
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.Iterator;
-import java.util.Map;
-
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * A helper class for creating a W3C DOM tree
@@ -233,7 +231,7 @@ public class DOMBuilder extends BuilderSupport {
         }
     }
 
-    private void setStringNS(Element element, Object key, Object value) {
+    private static void setStringNS(Element element, Object key, Object value) {
         String prefix = (String) key;
         element.setAttributeNS("http://www.w3.org/2000/xmlns/", "".equals(prefix) ? "xmlns" : "xmlns:" + prefix, value.toString());
     }

@@ -20,8 +20,9 @@ package org.codehaus.groovy.tools.shell
 
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.runtime.InvokerHelper
-import org.codehaus.groovy.tools.shell.util.Logger
 import org.codehaus.groovy.runtime.MethodClosure
+import org.codehaus.groovy.tools.shell.util.Logger
+
 import java.lang.reflect.Method
 
 /**
@@ -38,17 +39,17 @@ class Interpreter implements Evaluator
     private final GroovyShell shell
 
     Interpreter(final ClassLoader classLoader, final Binding binding) {
-        assert classLoader
-        assert binding
-
-        shell = new GroovyShell(classLoader, binding)
+        this(classLoader, binding, null)
     }
 
     Interpreter(final ClassLoader classLoader, final Binding binding, CompilerConfiguration configuration) {
         assert classLoader
         assert binding
-
-        shell = new GroovyShell(classLoader, binding, configuration)
+        if (configuration != null) {
+            shell = new GroovyShell(classLoader, binding, configuration)
+        } else {
+            shell = new GroovyShell(classLoader, binding)
+        }
     }
 
     Binding getContext() {

@@ -151,6 +151,68 @@ class JsonBuilderTest extends GroovyTestCase {
         assert json.toString() == '[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]'
     }
 
+    void testIterableAndClosure() {
+        Iterable authorIterable = [iterator:{->
+            [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")].iterator()
+        }] as Iterable
+        def json = new JsonBuilder()
+        json authorIterable, { Author author ->
+            name author.name
+        }
+
+        assert json.toString() == '[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]'
+    }
+
+    void testMethodWithIterableAndClosure() {
+        Iterable authorIterable = [iterator:{->
+            [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")].iterator()
+        }] as Iterable
+
+        def json = new JsonBuilder()
+        json.authors authorIterable, { Author author ->
+            name author.name
+        }
+
+        assert json.toString() == '{"authors":[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]}'
+    }
+
+    void testNestedMethodWithIterableAndClosure() {
+        Iterable authorIterable = [iterator:{->
+            [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")].iterator()
+        }] as Iterable
+
+        def json = new JsonBuilder()
+        json {
+            authors authorIterable, { Author author ->
+                name author.name
+            }
+        }
+
+        assert json.toString() == '{"authors":[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]}'
+    }
+
+    void testMethodWithArrayAndClosure() {
+        def authorArray = [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")] as Author[]
+        def json = new JsonBuilder()
+        json.authors authorArray, { Author author ->
+            name author.name
+        }
+
+        assert json.toString() == '{"authors":[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]}'
+    }
+
+    void testNestedMethodWithArrayAndClosure() {
+        Author[] authorArray = [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")] as Author[]
+        def json = new JsonBuilder()
+        json {
+            authors authorArray, { Author author ->
+                name author.name
+            }
+        }
+
+        assert json.toString() == '{"authors":[{"name":"Guillaume"},{"name":"Jochen"},{"name":"Paul"}]}'
+    }
+
     void testMethodWithCollectionAndClosure() {
         def authors = [new Author(name: "Guillaume"), new Author(name: "Jochen"), new Author(name: "Paul")]
 
@@ -340,4 +402,31 @@ class JsonBuilderTest extends GroovyTestCase {
         assert new JsonBuilder({'\1' 0}).toString() == '{"\\u0001":0}'
         assert new JsonBuilder({'\u0002' 0}).toString() == '{"\\u0002":0}'
     }
+
+    void testWithGenerator() {
+        def generator = new JsonGenerator.Options()
+                .excludeNulls()
+                .dateFormat('yyyyMM')
+                .excludeFieldsByName('secretKey', 'creditCardNumber')
+                .excludeFieldsByType(URL)
+                .addConverter(java.util.concurrent.atomic.AtomicBoolean) { ab -> ab.get() }
+                .build()
+
+        def json = new JsonBuilder(generator)
+
+        json.payload {
+            id 'YT-1234'
+            location null
+            secretKey 'J79-A25'
+            creditCardNumber '123-444-789-2233'
+            site new URL('http://groovy-lang.org')
+            isActive new java.util.concurrent.atomic.AtomicBoolean(true)
+        }
+
+        assert json.toString() == '{"payload":{"id":"YT-1234","isActive":true}}'
+
+        json = new JsonBuilder(['foo', null, 'bar', new URL('http://groovy-lang.org')], generator)
+        assert json.toString() == '["foo","bar"]'
+    }
+
 }

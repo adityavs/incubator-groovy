@@ -26,7 +26,7 @@ class GroovyMainTest extends GroovyTestCase {
         String[] args = ['-h']
         GroovyMain.processArgs(args, ps)
         def out = baos.toString()
-        assert out.contains('usage: groovy')
+        assert out.contains('Usage: groovy')
         ['-a', '-c', '-d', '-e', '-h', '-i', '-l', '-n', '-p', '-v'].each{
             assert out.contains(it)
         }
@@ -51,7 +51,7 @@ class GroovyMainTest extends GroovyTestCase {
         String[] args = ['abc.java']
         GroovyMain.processArgs(args, ps)
         def out = baos.toString()
-        assert out.contains('error: error: cannot compile file with .java extension: abc.java')
+        assert out.contains('error: cannot compile file with .java extension: abc.java')
     }
 
     /**
@@ -134,6 +134,29 @@ assert new MyConcreteClass() != null"""
         } finally {
             interfaceFile.delete()
             concreteFile.delete()
+        }
+    }
+
+    void testGroovyASTDump() {
+
+        def temporaryDirectory = new File("target/tmp/testGroovyXMLAstGeneration/")
+        temporaryDirectory.mkdirs()
+
+        def scriptFile = new File(temporaryDirectory, "Script1.groovy")
+        scriptFile.deleteOnExit()
+
+        scriptFile << "assert 1 + 1 == 2"
+
+        try {
+            System.setProperty('groovy.ast', 'xml')
+
+            GroovyMain.main([scriptFile.absolutePath] as String[])
+
+            assert new File(temporaryDirectory, scriptFile.name + '.xml').exists()
+        } finally {
+            temporaryDirectory.deleteDir()
+
+            System.clearProperty('groovy.ast')
         }
     }
 

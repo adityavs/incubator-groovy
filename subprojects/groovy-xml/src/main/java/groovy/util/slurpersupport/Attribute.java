@@ -21,13 +21,12 @@ package groovy.util.slurpersupport;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.GroovyRuntimeException;
+import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Iterator;
 import java.util.Map;
-
-import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 /**
  * Lazy evaluated representation of a node attribute.
@@ -75,7 +74,7 @@ public class Attribute extends GPathResult {
      * @return the namespace of this Attribute
      */
     public String namespaceURI() {
-        if (namespacePrefix == null) return "";
+        if (namespacePrefix == null || namespacePrefix.isEmpty()) return "";
         String uri = namespaceTagHints.get(namespacePrefix);
         return uri == null ? "" : uri;
     }

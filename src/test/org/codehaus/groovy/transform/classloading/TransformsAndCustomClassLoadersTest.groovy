@@ -18,6 +18,7 @@
  */
 package org.codehaus.groovy.transform.classloading
 
+import junit.framework.TestCase
 import org.codehaus.groovy.ast.ASTNode
 import org.codehaus.groovy.ast.ModuleNode
 import org.codehaus.groovy.ast.ClassNode
@@ -28,6 +29,7 @@ import org.codehaus.groovy.transform.GroovyASTTransformationClass
 import org.codehaus.groovy.transform.ASTTransformation
 import org.codehaus.groovy.transform.GroovyASTTransformation
 import org.codehaus.groovy.transform.GlobalTestTransformClassLoader
+import org.objectweb.asm.ClassVisitor
 
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
@@ -38,13 +40,21 @@ import java.lang.annotation.ElementType
  * Tests whether local and global transforms are successfully detected, loaded,
  * and run if separate class loaders are used for loading compile dependencies
  * and AST transforms.
- *
- * @author Peter Niederwieser
  */
 class TransformsAndCustomClassLoadersTest extends GroovyTestCase {
-    URL[] urls = collectUrls(getClass().classLoader)
+    URL[] urls = collectUrls(getClass().classLoader) + addGroovyUrls()
     GroovyClassLoader dependencyLoader = new GroovyClassLoader(new URLClassLoader(urls, (ClassLoader)null))
     GroovyClassLoader transformLoader = new GroovyClassLoader(new URLClassLoader(urls, new GroovyOnlyClassLoader()))
+
+    private static addGroovyUrls() {
+       [
+           GroovyObject.class.protectionDomain.codeSource.location.toURI().toURL(),    // load Groovy runtime
+           ClassVisitor.class.protectionDomain.codeSource.location.toURI().toURL(),    // load asm
+           GroovyTestCase.class.protectionDomain.codeSource.location.toURI().toURL(),  // load Groovy test module
+           TestCase.class.protectionDomain.codeSource.location.toURI().toURL(),        // -"-
+           this.protectionDomain.codeSource.location.toURI().toURL(),                  // load test as well
+       ]
+    }
 
     void setUp() {
         assert dependencyLoader.loadClass(CompilationUnit.class.name) != CompilationUnit
@@ -56,8 +66,8 @@ class TransformsAndCustomClassLoadersTest extends GroovyTestCase {
     }
 
     void testBuiltInLocalTransform() {
-        def clazz = compileAndLoadClass("@groovy.transform.Immutable class Foo { String bar }", dependencyLoader, transformLoader)
-        checkIsImmutable(clazz)
+        def clazz = compileAndLoadClass("@groovy.transform.TupleConstructor class Foo { String bar }", dependencyLoader, transformLoader)
+        checkHasTupleConstructor(clazz)
     }
 
     void testThirdPartyLocalTransform() {
@@ -90,12 +100,9 @@ class TransformsAndCustomClassLoadersTest extends GroovyTestCase {
         return loader.defineClass(classInfo.name, classInfo.bytes)
     }
 
-    private checkIsImmutable(Class clazz) {
-        try {
-            def foo = clazz.newInstance(["setting property"] as Object[])
-            foo.bar = "updating property"
-            fail()
-        } catch (ReadOnlyPropertyException expected) {}
+    private checkHasTupleConstructor(Class clazz) {
+        def foo = clazz.newInstance(["some property"] as Object[])
+        assert foo.bar == 'some property'
     }
 
     private Set<URL> collectUrls(ClassLoader classLoader) {

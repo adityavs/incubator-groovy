@@ -81,17 +81,29 @@ abstract class CommandSupport
 
     @Override
     String getDescription() {
-        return messages['command.description']
+        try {
+            return messages.getMessage('command.description')
+        } catch (MissingResourceException) {
+            return 'No description'
+        }
     }
 
     @Override
     String getUsage() {
-        return messages['command.usage']
+        try {
+            return messages.getMessage('command.usage')
+        } catch (MissingResourceException) {
+            return 'No usage description'
+        }
     }
 
     @Override
     String getHelp() {
-        return messages['command.help']
+        try {
+            return messages.getMessage('command.help')
+        } catch (MissingResourceException) {
+            return 'No help'
+        }
     }
 
     @Override
@@ -130,23 +142,30 @@ abstract class CommandSupport
         }
 
         List<Completer> list = new ArrayList<Completer>()
-        list << new StringsCompleter(name, shortcut)
-
         List<Completer> completers = createCompleters()
 
+        StringsCompleter stringCompleter
         if (completers) {
+            stringCompleter = new StringsCompleter(name + ' ', shortcut + ' ')
+        } else {
+            stringCompleter = new StringsCompleter(name, shortcut)
+        }
+
+        list << stringCompleter
+
+        if (completers) {
+            // replace null/empty with NullCompleter
             completers.each {Completer it ->
                 if (it) {
                     list << it
-                }
-                else {
+                } else {
                     list << new NullCompleter()
                 }
             }
-        }
-        else {
+        } else {
             list << new NullCompleter()
         }
+
 
         return new StricterArgumentCompleter(list)
     }

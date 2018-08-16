@@ -18,8 +18,9 @@
  */
 package groovy.json;
 
+import org.apache.groovy.io.StringBuilderWriter;
+
 import java.io.IOException;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Locale;
 
@@ -153,11 +154,11 @@ public class StringEscapeUtils {
             return null;
         }
         try {
-            StringWriter writer = new StringWriter(str.length() * 2);
+            Writer writer = new StringBuilderWriter(str.length() * 2);
             escapeJavaStyleString(writer, str, escapeSingleQuotes, escapeForwardSlash);
             return writer.toString();
         } catch (IOException ioe) {
-            // this should never ever happen while writing to a StringWriter
+            // this should never ever happen while writing to a StringBuilderWriter
             throw new RuntimeException(ioe);
         }
     }
@@ -165,7 +166,7 @@ public class StringEscapeUtils {
     /**
      * Worker method for the {@link #escapeJavaScript(String)} method.
      * 
-     * @param out write to receieve the escaped string
+     * @param out writer to receive the escaped string
      * @param str String to escape values in, may be null
      * @param escapeSingleQuote escapes single quotes if <code>true</code>
      * @param escapeForwardSlash TODO
@@ -276,11 +277,11 @@ public class StringEscapeUtils {
             return null;
         }
         try {
-            StringWriter writer = new StringWriter(str.length());
+            Writer writer = new StringBuilderWriter(str.length());
             unescapeJava(writer, str);
             return writer.toString();
         } catch (IOException ioe) {
-            // this should never ever happen while writing to a StringWriter
+            // this should never ever happen while writing to a StringBuilderWriter
             throw new RuntimeException(ioe);
         }
     }

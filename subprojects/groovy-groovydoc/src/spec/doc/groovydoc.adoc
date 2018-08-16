@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -43,6 +56,8 @@ first argument
 |-nomainforscripts| |Don't include the implicit 'public static void
 main' method for scripts
 |-noscripts| |Don't process Groovy Scripts
+|-notimestamp| |Don't include timestamp within hidden comment in generated HTML
+|-noversionstamp| |Don't include Groovy version within hidden comment in generated HTML
 |-overview <file>| |Read overview documentation from HTML file
 |-package| |Show package/protected/public classes and members
 |-private| |Show all classes and members
@@ -65,9 +80,9 @@ The `groovydoc` Ant task allows generating groovydocs from an Ant build.
 [[ThegroovydocAnttask-Requiredtaskdef]]
 === Required taskdef
 
-Assuming `groovy-all-{groovyversion}.jar` is in _my.classpath_ you will need to
-declare this task at some point in the build.xml prior to the groovydoc
-task being invoked.
+Assuming all the groovy jars you need are in _my.classpath_ (this will be `groovy-VERSION.jar`,
+`groovy-ant-VERSION.jar`, `groovy-groovydoc-VERSION.jar` plus any modules and transitive dependencies you might be using)
+you will need to declare this task at some point in the build.xml prior to the groovydoc task being invoked.
 
 [source,xml]
 -----------------------------------------------------------
@@ -133,7 +148,7 @@ Create link to groovydoc/javadoc output at the given URL.
            private      = "false">
         <link packages="java.,org.xml.,javax.,org.xml." href="http://docs.oracle.com/javase/8/docs/api/"/>
         <link packages="org.apache.tools.ant."          href="http://docs.groovy-lang.org/docs/ant/api/"/>
-        <link packages="org.junit.,junit.framework."    href="http://junit.org/apidocs/"/>
+        <link packages="org.junit.,junit.framework."    href="http://junit.org/junit4/javadoc/latest/"/>
         <link packages="groovy.,org.codehaus.groovy."   href="http://docs.groovy-lang.org/latest/html/api/"/>
         <link packages="org.codehaus.gmaven."           href="http://groovy.github.io/gmaven/apidocs/"/>
 </groovydoc>
@@ -160,7 +175,7 @@ ant.groovydoc(
         link(packages:"java.,org.xml.,javax.,org.xml.",href:"http://docs.oracle.com/javase/8/docs/api/")
         link(packages:"groovy.,org.codehaus.groovy.",  href:"http://docs.groovy-lang.org/latest/html/api/")
         link(packages:"org.apache.tools.ant.",         href:"http://docs.groovy-lang.org/docs/ant/api/")
-        link(packages:"org.junit.,junit.framework.",   href:"http://junit.org/apidocs/")
+        link(packages:"org.junit.,junit.framework.",   href:"http://junit.org/junit4/javadoc/latest/")
         link(packages:"org.codehaus.gmaven.",          href:"http://groovy.github.io/gmaven/apidocs/")
 }
 --------------------------------------------------------------------------------------------------------------

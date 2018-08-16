@@ -42,22 +42,18 @@ public class NewStaticMetaMethodTest extends TestCase {
     }
 
     public void testInvokeDefaultGroovyMethod() throws Exception {
-        Method method = DefaultGroovyMethods.class.getMethod("plus", new Class[]{String.class, Object.class});
+        Method method = StringGroovyMethods.class.getMethod("plus", new Class[]{String.class, Object.class});
         assertTrue("Should have found a method", method != null);
 
         NewInstanceMetaMethod metaMethod = createNewMetaMethod(method);
 
         Object answer = metaMethod.invoke("abc", new Object[]{"123"});
         assertEquals("abc123", answer);
-
-        System.out.println("Found: " + answer);
     }
 
     public void testInvokeDefaultGroovyMethodUsingMetaClass() {
         Object answer = InvokerHelper.invokeMethod("abc", "plus", new Object[]{"123"});
         assertEquals("abc123", answer);
-
-        System.out.println("Found: " + answer);
     }
 
     public static String dummyMethod(String foo, String bar) throws Exception {

@@ -18,11 +18,11 @@
  */
 package groovy.bugs
 
+import org.junit.Ignore
+
+@Ignore('requires a specific configuration, see: https://issues.apache.org/jira/browse/GROOVY-4393 for details')
 class Groovy4393Bug extends GroovyTestCase {
     void testIfSourceFilesWithOtherExtensionsGotCompiledFine() {
-        
-        println Groovy4393BugV1
-        
         assert Groovy4393BugV1 != null
     }
 }

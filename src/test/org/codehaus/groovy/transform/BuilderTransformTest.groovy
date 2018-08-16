@@ -21,8 +21,7 @@ package org.codehaus.groovy.transform
 import gls.CompilableTestSupport
 
 /**
- * @author Marcin Grzejszczak
- * @author Paul King
+ * Tests for {@code @Builder} transform.
  */
 class BuilderTransformTest extends CompilableTestSupport {
 
@@ -77,6 +76,15 @@ class BuilderTransformTest extends CompilableTestSupport {
             class Person { }
         """
         assert message.contains("Annotation attribute 'buildMethodName' not supported")
+    }
+
+    void testSimpleBuilderInvalidUseOfIncludeSuperProperties() {
+        def message = shouldNotCompile """
+            import groovy.transform.builder.*
+            @Builder(builderStrategy=SimpleStrategy, includeSuperProperties=true)
+            class Person { }
+        """
+        assert message.contains("Annotation attribute 'includeSuperProperties' not supported")
     }
 
     void testSimpleBuilderCustomPrefix() {
@@ -300,7 +308,35 @@ class BuilderTransformTest extends CompilableTestSupport {
                 }
             }
         """
+
         assert message.contains("includes/excludes only allowed on classes")
+    }
+
+    void testDefaultBuilderIncludeSuperProperties() {
+        assertScript """
+            import groovy.transform.builder.*
+            import groovy.transform.*
+
+            @Builder
+            class Mamal {
+                int age
+            }
+            @Builder(includeSuperProperties=true)
+            class Person extends Mamal {
+                String firstName
+                String lastName
+            }
+
+            @CompileStatic
+            def parentBuilder() {
+                def builder = Person.builder()
+                Person person = builder.age(21).firstName("Robert").lastName("Lewandowski").build()
+                assert person.firstName == "Robert"
+                assert person.lastName == "Lewandowski"
+                assert person.age == 21
+            }
+            parentBuilder()
+         """
     }
 
     void testExternalBuilder() {
@@ -427,6 +463,33 @@ class BuilderTransformTest extends CompilableTestSupport {
         '''
     }
 
+    void testExternalBuilderIncludeSuperProperties() {
+        assertScript """
+            import groovy.transform.builder.*
+            import groovy.transform.*
+
+            class Mamal {
+                int age
+            }
+            class Person extends Mamal {
+                String firstName
+                String lastName
+            }
+
+            @Builder(builderStrategy=ExternalStrategy, forClass=Person, includeSuperProperties=true)
+            class PersonBuilder { }
+
+            @CompileStatic
+            def parentBuilder() {
+                Person person = new PersonBuilder().age(21).firstName("Robert").lastName("Lewandowski").build()
+                assert person.firstName == "Robert"
+                assert person.lastName == "Lewandowski"
+                assert person.age == 21
+            }
+            parentBuilder()
+        """
+    }
+
     void testInitializerStrategy() {
         assertScript '''
             import groovy.transform.builder.*
@@ -540,8 +603,8 @@ class BuilderTransformTest extends CompilableTestSupport {
             import groovy.transform.builder.*
             import groovy.transform.*
 
-            @Canonical
-            @Builder(builderStrategy=InitializerStrategy, useSetters=true)
+            @Canonical(useSetters=true)
+            @Builder(builderStrategy=InitializerStrategy)
             class Person {
                 String name
                 void setName(String name) { this.name = name?.toUpperCase() }
@@ -553,6 +616,182 @@ class BuilderTransformTest extends CompilableTestSupport {
             }
             make()
         '''
+        assertScript '''
+            import groovy.transform.builder.*
+            import groovy.transform.*
+
+            @Canonical
+            @TupleConstructor(includes='')
+            @Builder(builderStrategy=InitializerStrategy, useSetters=true, force=true)
+            class Person {
+                String name
+                void setName(String name) { this.name = name?.toUpperCase() }
+            }
+
+            @CompileStatic
+            def make() {
+                assert new Person(Person.createInitializer().name("John")).toString() == 'Person(JOHN)'
+            }
+            make()
+        '''
+    }
+
+    void testInitializerStrategyIncludeSuperProperties() {
+        assertScript '''
+            import groovy.transform.builder.*
+            import groovy.transform.*
+
+            class Mamal {
+                int age
+            }
+
+            @ToString(includeSuperProperties=true)
+            @Builder(builderStrategy=InitializerStrategy, includeSuperProperties=true)
+            class Person extends Mamal {
+                String firstName
+                String lastName
+            }
+
+            @CompileStatic
+            def parentBuilder() {
+                assert new Person(Person.createInitializer().firstName("John").lastName("Smith").age(21)).toString() == 'Person(John, Smith, 21)'
+            }
+            // static case
+            parentBuilder()
+            // dynamic case
+            assert new Person(Person.createInitializer().firstName("John").lastName("Smith").age(21)).toString() == 'Person(John, Smith, 21)'
+        '''
+        def message = shouldNotCompile '''
+            import groovy.transform.builder.*
+            import groovy.transform.*
+
+            class Mamal {
+                int age
+            }
+
+            @ToString
+            @Builder(builderStrategy=InitializerStrategy, includeSuperProperties=true)
+            class Person extends Mamal {
+                String firstName
+                String lastName
+            }
+
+            @CompileStatic
+            def firstLastButNoAge() {
+                new Person(Person.createInitializer().firstName("John").lastName("Smith"))
+            }
+        '''
+        assert message.contains('[Static type checking] - Cannot call Person#<init>')
+        assert message =~ /.*SET.*SET.*UNSET.*/
+    }
+
+    void testBuilderWithPackageName_GROOVY7501() {
+        assertScript '''
+            package alfa.beta
+
+            import groovy.transform.builder.*
+
+            @Builder class PersonDef { }
+            assert PersonDef.builder().class.name == 'alfa.beta.PersonDef$PersonDefBuilder'
+
+            @Builder(builderStrategy=InitializerStrategy) class PersonInit { String foo }
+            assert PersonInit.createInitializer().class.name == 'alfa.beta.PersonInit$PersonInitInitializer'
+        '''
+    }
+
+    void testInitializerStrategyEmptyCases_GROOVY7503() {
+        def message = shouldNotCompile '''
+            import groovy.transform.builder.*
+            @Builder(builderStrategy=InitializerStrategy) class Foo { }
+        '''
+        assert message.contains('at least one property is required for this strategy')
+        message = shouldNotCompile '''
+            import groovy.transform.builder.*
+            @Builder(builderStrategy=InitializerStrategy, excludes='bar') class Foo { String bar }
+        '''
+        assert message.contains('at least one property is required for this strategy')
+        message = shouldNotCompile '''
+            import groovy.transform.builder.*
+            class Foo {
+              @Builder(builderStrategy=InitializerStrategy)
+              Foo() {
+              }
+            }
+        '''
+        assert message.contains('at least one parameter is required for this strategy')
+    }
+
+    void testInternalFieldsAreIncludedIfRequestedForSimpleStrategy_GROOVY6454() {
+        assertScript '''
+            import groovy.transform.builder.*
+
+            @Builder(builderStrategy = SimpleStrategy, allNames = true)
+            class HasInternalPropertyWithSimpleStrategy {
+                String $internal
+            }
+            assert new HasInternalPropertyWithSimpleStrategy().set$internal("foo").$internal == "foo"
+         '''
+    }
+
+    void testInternalFieldsAreIncludedIfRequestedForExternalStrategy_GROOVY6454() {
+        assertScript '''
+            import groovy.transform.builder.*
+
+            class HasInternalProperty {
+                String $internal
+            }
+
+            @Builder(builderStrategy = ExternalStrategy, forClass = HasInternalProperty, allNames = true)
+            class HasInternalPropertyBuilder { }
+
+            assert new HasInternalPropertyBuilder().$internal("foo").build().$internal == "foo"
+         '''
+    }
+
+    void testInternalFieldsAreIncludedIfRequestedForDefaultStrategy_GROOVY6454() {
+        assertScript '''
+            import groovy.transform.builder.*
+
+            @Builder(allNames = true)
+            class HasInternalProperty {
+                String $internal
+            }
+
+            assert HasInternalProperty.builder().$internal("foo").$internal == "foo"
+         '''
+    }
+
+    void testInternalFieldsAreIncludedIfRequestedForInitializerStrategyStrategy_GROOVY6454() {
+        assertScript '''
+            import groovy.transform.builder.*
+
+            @Builder(builderStrategy = InitializerStrategy, allNames = true)
+            class HasInternalProperty {
+                String $internal
+            }
+
+            def initializer = HasInternalProperty.createInitializer()
+            assert new HasInternalProperty(initializer.$internal("foo")).$internal == "foo"
+         '''
+    }
+
+    // GROOVY-8186
+    void testJavaBeanPropertiesAreProperlyProcessed() {
+        assertScript '''
+            import groovy.transform.builder.*
+
+            class Foo {
+              String getName() {
+                'John'
+              }
+              void setName(String ignore) {}
+            }
+
+            @Builder(builderStrategy=ExternalStrategy, forClass=Foo)
+            class FooBuilder { }
+
+            assert new FooBuilder().name('Mary').build().name == 'John'
+         '''
     }
 
 }

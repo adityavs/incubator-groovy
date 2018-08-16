@@ -25,10 +25,21 @@ import org.codehaus.groovy.antlr.SourceBuffer;
 import org.codehaus.groovy.antlr.parser.GroovyTokenTypes;
 import org.codehaus.groovy.antlr.treewalker.VisitorAdapter;
 import org.codehaus.groovy.control.ResolveVisitor;
-import org.codehaus.groovy.groovydoc.*;
+import org.codehaus.groovy.groovydoc.GroovyAnnotationRef;
+import org.codehaus.groovy.groovydoc.GroovyClassDoc;
+import org.codehaus.groovy.groovydoc.GroovyConstructorDoc;
+import org.codehaus.groovy.groovydoc.GroovyFieldDoc;
+import org.codehaus.groovy.groovydoc.GroovyMethodDoc;
+import org.codehaus.groovy.groovydoc.GroovyType;
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Stack;
+import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,20 +47,20 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
     private static final String FS = "/";
     private static final Pattern PREV_JAVADOC_COMMENT_PATTERN = Pattern.compile("(?s)/\\*\\*(.*?)\\*/");
     private final Stack<GroovySourceAST> stack;
-    private Map<String, GroovyClassDoc> classDocs;
-    private List<String> importedClassesAndPackages;
-    private Map<String, String> aliases;
-    private List<LinkArgument> links;
-    private Properties properties;
+    private final Map<String, GroovyClassDoc> classDocs;
+    private final List<String> importedClassesAndPackages;
+    private final Map<String, String> aliases;
+    private final List<LinkArgument> links;
+    private final Properties properties;
     private SimpleGroovyFieldDoc currentFieldDoc;
-    private SourceBuffer sourceBuffer;
+    private final SourceBuffer sourceBuffer;
     private String packagePath;
     private LineColumn lastLineCol;
     private boolean insideEnum;
     private Map<String, SimpleGroovyClassDoc> foundClasses;
-    private boolean isGroovy;
-    private boolean deferSetup;
-    private String className;
+    private final boolean isGroovy;
+    private final boolean deferSetup;
+    private final String className;
 
     public SimpleGroovyClassDocAssembler(String packagePath, String file, SourceBuffer sourceBuffer, List<LinkArgument> links, Properties properties, boolean isGroovy) {
         this.sourceBuffer = sourceBuffer;
@@ -59,17 +70,18 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
         this.isGroovy = isGroovy;
 
         stack = new Stack<GroovySourceAST>();
-        classDocs = new HashMap<String, GroovyClassDoc>();
-        className = file;
+        classDocs = new LinkedHashMap<String, GroovyClassDoc>();
         if (file != null) {
             // todo: replace this simple idea of default class name
             int idx = file.lastIndexOf(".");
             className = file.substring(0, idx);
+        } else {
+            className = file;
         }
 
         deferSetup = packagePath.equals("DefaultPackage");
         importedClassesAndPackages = new ArrayList<String>();
-        aliases = new HashMap<String, String>();
+        aliases = new LinkedHashMap<String, String>();
         if (!deferSetup) setUpImports(packagePath, links, isGroovy, className);
         lastLineCol = new LineColumn(1, 1);
     }
@@ -127,7 +139,7 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
             if (parent != null && isNested() && !insideAnonymousInnerClass()) {
                 className = parent.name() + "." + className;
             } else {
-                foundClasses = new HashMap<String, SimpleGroovyClassDoc>();
+                foundClasses = new LinkedHashMap<String, SimpleGroovyClassDoc>();
             }
             SimpleGroovyClassDoc current = (SimpleGroovyClassDoc) classDocs.get(packagePath + FS + className);
             if (current == null) {
@@ -210,7 +222,7 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
         }
     }
 
-    private List<GroovySourceAST> findTypeNames(GroovySourceAST t) {
+    private static List<GroovySourceAST> findTypeNames(GroovySourceAST t) {
         List<GroovySourceAST> types = new ArrayList<GroovySourceAST>();
         for (AST child = t.getFirstChild(); child != null; child = child.getNextSibling()) {
             GroovySourceAST groovySourceAST = (GroovySourceAST) child;
@@ -243,26 +255,101 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
             if (currentClassDoc == null) {
                 // assume we have a script
                 if ("true".equals(properties.getProperty("processScripts", "true"))) {
-                    currentClassDoc = new SimpleGroovyClassDoc(importedClassesAndPackages, aliases, className, links);
-                    currentClassDoc.setFullPathName(packagePath + FS + className);
-                    currentClassDoc.setPublic(true);
-                    currentClassDoc.setScript(true);
-                    currentClassDoc.setGroovy(isGroovy);
-                    currentClassDoc.setSuperClassName("groovy/lang/Script");
-                    if ("true".equals(properties.getProperty("includeMainForScripts", "true"))) {
-                        currentClassDoc.add(createMainMethod(currentClassDoc));
-                    }
-                    classDocs.put(currentClassDoc.getFullPathName(), currentClassDoc);
-                    if (foundClasses == null) {
-                        foundClasses = new HashMap<String, SimpleGroovyClassDoc>();
-                    }
-                    foundClasses.put(className, currentClassDoc);
+                    currentClassDoc = getOrMakeScriptClassDoc();
                 } else {
                     return;
                 }
             }
             SimpleGroovyMethodDoc currentMethodDoc = createMethod(t, currentClassDoc);
+            StringBuilder params = new StringBuilder();
+            getTypeParameters(t.childOfType(TYPE_PARAMETERS), params, "def");
+            currentMethodDoc.setTypeParameters(params.toString());
             currentClassDoc.add(currentMethodDoc);
+        }
+    }
+
+    private SimpleGroovyClassDoc getOrMakeScriptClassDoc() {
+        SimpleGroovyClassDoc currentClassDoc;
+        if (foundClasses != null && foundClasses.containsKey(className)) {
+            currentClassDoc = foundClasses.get(className);
+        } else {
+            currentClassDoc = new SimpleGroovyClassDoc(importedClassesAndPackages, aliases, className, links);
+            currentClassDoc.setFullPathName(packagePath + FS + className);
+            currentClassDoc.setPublic(true);
+            currentClassDoc.setScript(true);
+            currentClassDoc.setGroovy(isGroovy);
+            currentClassDoc.setSuperClassName("groovy/lang/Script");
+            if ("true".equals(properties.getProperty("includeMainForScripts", "true"))) {
+                currentClassDoc.add(createMainMethod(currentClassDoc));
+            }
+            classDocs.put(currentClassDoc.getFullPathName(), currentClassDoc);
+            if (foundClasses == null) {
+                foundClasses = new LinkedHashMap<String, SimpleGroovyClassDoc>();
+            }
+            foundClasses.put(className, currentClassDoc);
+        }
+        return currentClassDoc;
+    }
+
+    private void processPropertiesFromGetterSetter(SimpleGroovyMethodDoc currentMethodDoc) {
+        String methodName = currentMethodDoc.name();
+        int len = methodName.length();
+        String prefix = null;
+        String propName = null;
+        if (len > 3 && methodName.startsWith("get")) {
+            prefix = "get";
+            propName = methodName.substring(3);
+        } else if (len > 3 && methodName.startsWith("set")) {
+            prefix = "set";
+            propName = methodName.substring(3);
+        } else if (len > 2 && methodName.startsWith("is")) {
+            prefix = "is";
+            propName = methodName.substring(2);
+        } else {
+            // Not a (get/set/is) method that contains a property name
+            return;
+        }
+
+        SimpleGroovyClassDoc classDoc = getCurrentClassDoc();
+        // TODO: not sure why but groovy.ui.view.BasicContentPane#buildOutputArea classDoc is null
+        if (classDoc == null) {
+            return;
+        }
+        GroovyMethodDoc methods[] = classDoc.methods();
+
+        //find expected method name
+        String expectedMethodName = null;
+        if ("set".equals(prefix) && (currentMethodDoc.parameters().length >= 1 && !currentMethodDoc.parameters()[0].typeName().equals("boolean"))) {
+            expectedMethodName = "get" + propName;
+        } else if ("get".equals(prefix) && !currentMethodDoc.returnType().typeName().equals("boolean")) {
+            expectedMethodName = "set" + propName;
+        } else if ("is".equals(prefix)) {
+            expectedMethodName = "set" + propName;
+        } else {
+            expectedMethodName = "is" + propName;
+        }
+
+        for (GroovyMethodDoc methodDoc : methods) {
+            if (methodDoc.name().equals(expectedMethodName)) {
+
+                //extract the field name
+                String fieldName = propName.substring(0, 1).toLowerCase() + propName.substring(1);
+                SimpleGroovyFieldDoc currentFieldDoc = new SimpleGroovyFieldDoc(fieldName, classDoc);
+
+                //find the type of the field; if it's a setter, need to get the type of the params
+                if(expectedMethodName.startsWith("set") && methodDoc.parameters().length >= 1) {
+                    String typeName = methodDoc.parameters()[0].typeName();
+                    currentFieldDoc.setType(new SimpleGroovyType(typeName));
+                } else {
+                    //if it's not setter, get the type info of the return type of the get* method
+                    currentFieldDoc.setType(methodDoc.returnType());
+                }
+
+                if (methodDoc.isPublic() && currentMethodDoc.isPublic()) {
+                    classDoc.addProperty(currentFieldDoc);
+                    break;
+                }
+            }
         }
     }
 
@@ -274,10 +361,11 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
         currentMethodDoc.setReturnType(new SimpleGroovyType(getTypeOrDefault(t)));
         addParametersTo(t, currentMethodDoc);
         processAnnotations(t, currentMethodDoc);
+        processPropertiesFromGetterSetter(currentMethodDoc);
         return currentMethodDoc;
     }
 
-    private GroovyMethodDoc createMainMethod(SimpleGroovyClassDoc currentClassDoc) {
+    private static GroovyMethodDoc createMainMethod(SimpleGroovyClassDoc currentClassDoc) {
         SimpleGroovyMethodDoc mainMethod = new SimpleGroovyMethodDoc("main", currentClassDoc);
         mainMethod.setPublic(true);
         mainMethod.setStatic(true);
@@ -338,20 +426,40 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
 
     @Override
     public void visitVariableDef(GroovySourceAST t, int visit) {
-        if (visit == OPENING_VISIT && !insideAnonymousInnerClass() && isFieldDefinition()) {
+        if (visit == OPENING_VISIT && !insideAnonymousInnerClass()) {
+            boolean validField = true;
             SimpleGroovyClassDoc currentClassDoc = getCurrentClassDoc();
-            if (currentClassDoc != null) {
-                String fieldName = getIdentFor(t);
-                currentFieldDoc = new SimpleGroovyFieldDoc(fieldName, currentClassDoc);
-                currentFieldDoc.setRawCommentText(getJavaDocCommentsBeforeNode(t));
-                boolean isProp = processModifiers(t, currentFieldDoc);
-                currentFieldDoc.setType(new SimpleGroovyType(getTypeOrDefault(t)));
-                processAnnotations(t, currentFieldDoc);
-                if (isProp) {
-                    currentClassDoc.addProperty(currentFieldDoc);
+            if (currentClassDoc == null) {
+                // assume we have a script (and it may have a @Field)
+                if ("true".equals(properties.getProperty("processScripts", "true"))) {
+                    currentClassDoc = getOrMakeScriptClassDoc();
+                    validField = false;
                 } else {
-                    currentClassDoc.add(currentFieldDoc);
+                    return;
                 }
+            } else if (!isFieldDefinition()) {
+                return;
+            }
+            String fieldName = getIdentFor(t);
+            if (fieldName.isEmpty()) return; // multi-assignment
+            currentFieldDoc = new SimpleGroovyFieldDoc(fieldName, currentClassDoc);
+            currentFieldDoc.setRawCommentText(getJavaDocCommentsBeforeNode(t));
+            boolean isProp = processModifiers(t, currentFieldDoc);
+            currentFieldDoc.setType(new SimpleGroovyType(getTypeOrDefault(t)));
+            processAnnotations(t, currentFieldDoc);
+            if (!validField) { // look for @Field
+                for (GroovyAnnotationRef ref : currentFieldDoc.annotations()) {
+                    if ("Field".equals(ref.name()) || "groovy/transform/Field".equals(ref.name())) {
+                        validField = true;
+                        break;
+                    }
+                }
+            }
+            if (!validField) return;
+            if (isProp) {
+                currentClassDoc.addProperty(currentFieldDoc);
+            } else {
+                currentClassDoc.add(currentFieldDoc);
             }
         }
     }
@@ -402,13 +510,13 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
         return getCurrentClassDoc() != null;
     }
 
-    private boolean isTopLevelConstruct(GroovySourceAST node) {
+    private static boolean isTopLevelConstruct(GroovySourceAST node) {
         if (node == null) return false;
         int type = node.getType();
         return type == CLASS_DEF || type == INTERFACE_DEF || type == TRAIT_DEF || type == ANNOTATION_DEF || type == ENUM_DEF;
     }
 
-    private void adjustForAutomaticEnumMethods(SimpleGroovyClassDoc currentClassDoc) {
+    private static void adjustForAutomaticEnumMethods(SimpleGroovyClassDoc currentClassDoc) {
         SimpleGroovyMethodDoc valueOf = new SimpleGroovyMethodDoc("valueOf", currentClassDoc);
         valueOf.setRawCommentText("Returns the enum constant of this type with the specified name.");
         SimpleGroovyParameter parameter = new SimpleGroovyParameter("name");
@@ -424,10 +532,10 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
     }
 
     private String extractImportPath(GroovySourceAST t) {
-        return recurseDownImportBranch(getImportPathDotType(t));
+        return recurseDownImportBranch(getPackageDotType(t));
     }
 
-    private GroovySourceAST getImportPathDotType(GroovySourceAST t) {
+    private static GroovySourceAST getPackageDotType(GroovySourceAST t) {
         GroovySourceAST child = t.childOfType(DOT);
         if (child == null) {
             child = t.childOfType(IDENT);
@@ -453,14 +561,14 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
     }
 
     private void addAnnotationRef(SimpleGroovyProgramElementDoc node, GroovySourceAST t) {
-        GroovySourceAST classNode = t.childOfType(IDENT);
+        GroovySourceAST classNode = getPackageDotType(t);
         if (classNode != null) {
             node.addAnnotationRef(new SimpleGroovyAnnotationRef(extractName(classNode), getChildTextFromSource(t).trim()));
         }
     }
 
     private void addAnnotationRef(SimpleGroovyParameter node, GroovySourceAST t) {
-        GroovySourceAST classNode = t.childOfType(IDENT);
+        GroovySourceAST classNode = getPackageDotType(t);
         if (classNode != null) {
             node.addAnnotationRef(new SimpleGroovyAnnotationRef(extractName(classNode), getChildTextFromSource(t).trim()));
         }
@@ -630,14 +738,14 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
         return result;
     }
 
-    private boolean isMajorType(GroovySourceAST t) {
+    private static boolean isMajorType(GroovySourceAST t) {
         if (t == null) return false;
         int tt = t.getType();
         return tt == CLASS_DEF || tt == TRAIT_DEF || tt == INTERFACE_DEF || tt == METHOD_DEF || tt == ANNOTATION_DEF || tt == ENUM_DEF ||
                 tt == VARIABLE_DEF || tt == ANNOTATION_FIELD_DEF || tt == ENUM_CONSTANT_DEF || tt == CTOR_IDENT;
     }
 
-    private String getText(GroovySourceAST node) {
+    private static String getText(GroovySourceAST node) {
         String returnValue = null;
         if (node != null) {
             returnValue = node.getText();
@@ -645,7 +753,7 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
         return returnValue;
     }
 
-    // preempt resolve as info is partially available here (star imports won't match here)
+    // preempt resolve as info is partially available here (aliases and star imports won't match here)
     private String extractName(GroovySourceAST typeNode) {
         String typeName = buildName(typeNode);
         if (!typeName.contains("/")) {
@@ -653,7 +761,7 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
             // Groovy currently resolves this to last found so traverse in reverse order
             for (int i = importedClassesAndPackages.size() - 1; i >= 0; i--) {
                 String name = importedClassesAndPackages.get(i);
-                if (name.endsWith(slashName)) {
+                if (!aliases.containsValue(name) && name.endsWith(slashName)) {
                     typeName = name;
                     break;
                 }
@@ -701,7 +809,16 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
             if (next.getType() == TYPE_UPPER_BOUNDS) return "? extends " + boundType;
             if (next.getType() == TYPE_LOWER_BOUNDS) return "? super " + boundType;
         } else if (typeNode.getType() == IDENT) {
-            return getAsTextCurrent(typeNode, defaultText);
+            String ident = getAsTextCurrent(typeNode, defaultText);
+            AST next = typeNode.getNextSibling();
+            if (next == null && typeNode.getFirstChild() != null) {
+                // Java2Groovy produces a slightly different tree structure (TODO fix converter or java.g instead?)
+                next = typeNode.getFirstChild();
+            }
+            if (next == null) return ident;
+            String boundType = getTypeNodeAsText((GroovySourceAST) next.getFirstChild(), defaultText);
+            if (next.getType() == TYPE_UPPER_BOUNDS) return ident + " extends " + boundType;
+            if (next.getType() == TYPE_LOWER_BOUNDS) return ident + " super " + boundType;
         }
         return defaultText;
     }
@@ -749,10 +866,7 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
                 StringBuilder dot = new StringBuilder();
                 GroovySourceAST dotChild = (GroovySourceAST) node.getFirstChild();
                 while (dotChild != null) {
-                    if (dotChild.getType() == IDENT) {
-                        if (dot.length() > 0) dot.append("/");
-                        dot.append(getAsTextCurrent(dotChild, defaultText));
-                    } else if (dotChild.getType() == DOT) {
+                    if (dotChild.getType() == IDENT || dotChild.getType() == DOT) {
                         if (dot.length() > 0) dot.append("/");
                         dot.append(getAsTextCurrent(dotChild, defaultText));
                     } else if (dotChild.getType() == TYPE_ARGUMENTS) {
@@ -776,7 +890,7 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
                 }
                 typeArgumentsNext = (GroovySourceAST) typeArgumentsNext.getNextSibling();
             }
-            result.append(DefaultGroovyMethods.join(typeArgumentParts, ", "));
+            result.append(DefaultGroovyMethods.join((Iterable)typeArgumentParts, ", "));
             result.append(">");
         }
     }
@@ -792,7 +906,7 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
                 }
                 typeParametersNext = (GroovySourceAST) typeParametersNext.getNextSibling();
             }
-            result.append(DefaultGroovyMethods.join(typeParameterParts, ", "));
+            result.append(DefaultGroovyMethods.join((Iterable)typeParameterParts, ", "));
             result.append(">");
         }
     }
@@ -883,15 +997,18 @@ public class SimpleGroovyClassDocAssembler extends VisitorAdapter implements Gro
     private SimpleGroovyClassDoc getCurrentClassDoc() {
         if (stack.isEmpty()) return null;
         GroovySourceAST node = getParentNode();
-        if (isTopLevelConstruct(node)) return foundClasses.get(getIdentFor(node));
+        if (isTopLevelConstruct(node) && foundClasses != null) {
+            return foundClasses.get(getIdentFor(node));
+        }
         GroovySourceAST saved = stack.pop();
         SimpleGroovyClassDoc result = getCurrentClassDoc();
         stack.push(saved);
         return result;
     }
 
-    private String getIdentFor(GroovySourceAST gpn) {
-        return gpn.childOfType(IDENT).getText();
+    private static String getIdentFor(GroovySourceAST gpn) {
+        GroovySourceAST ident = gpn.childOfType(IDENT);
+        return ident == null ? "" : ident.getText();
     }
 
     private String getIdentPlusTypeArgsFor(GroovySourceAST gpn) {

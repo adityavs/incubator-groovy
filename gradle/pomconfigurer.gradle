@@ -212,7 +212,7 @@ project.ext.pomConfigureClosureWithoutTweaks = {
             developer {
                 id 'russel'
                 name 'Russel Winder'
-                email 'russel@russel.org.uk'
+                email 'russel@winder.org.uk'
                 organization 'Concertant LLP & It\'z Interactive Ltd'
                 roles {
                     role 'Developer'
@@ -356,6 +356,15 @@ project.ext.pomConfigureClosureWithoutTweaks = {
                     role 'Developer'
                 }
             }
+            developer {
+                id 'sunlan'
+                name 'Daniel Sun'
+                email 'realbluesun@hotmail.com'
+                roles {
+                    role 'Developer'
+                    role 'Despot'
+                }
+            }
         }
         contributors {
             contributor {
@@ -433,6 +442,9 @@ project.ext.pomConfigureClosureWithoutTweaks = {
             }
             contributor {
                 name 'Bernhard Huber'
+            }
+            contributor {
+                name 'Yasuharu Nakano'
             }
             contributor {
                 name 'Marc DeXeT'
@@ -541,7 +553,19 @@ project.ext.pomConfigureClosureWithoutTweaks = {
                 name 'Peter Ledbrook'
             }
             contributor {
+                name 'Scott Stirling'
+            }
+            contributor {
                 name 'Thibault Kruse'
+            }
+            contributor {
+                name 'Tim Tiemens'
+            }
+            contributor {
+                name 'Mike Spille'
+            }
+            contributor {
+                name 'Nikolay Chugunov'
             }
             contributor {
                 name 'Paolo Di Tommaso'
@@ -563,6 +587,57 @@ project.ext.pomConfigureClosureWithoutTweaks = {
             }
             contributor {
                 name 'Nick Grealy'
+            }
+            contributor {
+                name 'Marcin Grzejszczak'
+            }
+            contributor {
+                name 'Pap Lőrinc'
+            }
+            contributor {
+                name 'Guillaume Balaine'
+            }
+            contributor {
+                name 'Santhosh Kumar T'
+            }
+            contributor {
+                name 'Alan Green'
+            }
+            contributor {
+                name 'Alex Popescu'
+            }
+            contributor {
+                name 'Martin Kempf'
+            }
+            contributor {
+                name 'Stephane Landelle'
+            }
+            contributor {
+                name 'Vladimir Vivien'
+            }
+            contributor {
+                name 'Graeme Rocher'
+            }
+            contributor {
+                name 'Joe Wolf'
+            }
+            contributor {
+                name 'Kent Inge Fagerland Simonsen'
+            }
+            contributor {
+                name 'Tom Nichols'
+            }
+            contributor {
+                name 'Remko Popma'
+            }
+            contributor {
+                name 'mgroovy'
+            }
+            contributor {
+                name 'Dominik Przybysz'
+            }
+            contributor {
+                name 'Shruti Gupta'
             }
         }
         mailingLists {
@@ -587,9 +662,9 @@ project.ext.pomConfigureClosureWithoutTweaks = {
             url 'http://issues.apache.org/jira/browse/GROOVY'
         }
         scm {
-            connection 'scm:git:https://github.com/apache/incubator-groovy.git'
-            developerConnection 'scm:git:https://github.com/apache/incubator-groovy.git'
-            url 'https://github.com/apache/incubator-groovy.git'
+            connection 'scm:git:https://github.com/apache/groovy.git'
+            developerConnection 'scm:git:https://github.com/apache/groovy.git'
+            url 'https://github.com/apache/groovy.git'
         }
     }
 }

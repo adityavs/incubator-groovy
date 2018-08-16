@@ -25,7 +25,11 @@ import org.codehaus.groovy.ast.DynamicVariable
 import org.codehaus.groovy.ast.GroovyClassVisitor
 import org.codehaus.groovy.ast.expr.VariableExpression
 import org.codehaus.groovy.classgen.GeneratorContext
-import org.codehaus.groovy.control.*
+import org.codehaus.groovy.control.CompilationFailedException
+import org.codehaus.groovy.control.CompilationUnit
+import org.codehaus.groovy.control.CompilerConfiguration
+import org.codehaus.groovy.control.Phases
+import org.codehaus.groovy.control.SourceUnit
 
 import java.security.CodeSource
 
@@ -89,7 +93,8 @@ class ScriptVariableAnalyzer {
     static class VisitorClassLoader extends GroovyClassLoader {
         final GroovyClassVisitor visitor
 
-        VisitorClassLoader(final GroovyClassVisitor visitor) {
+        VisitorClassLoader(final GroovyClassVisitor visitor, ClassLoader parent) {
+            super(parent == null ?  Thread.currentThread().getContextClassLoader() : parent)
             this.visitor = visitor
         }
 
@@ -101,10 +106,10 @@ class ScriptVariableAnalyzer {
         }
     }
 
-    static Set<String> getBoundVars(final String scriptText) {
+    static Set<String> getBoundVars(final String scriptText, ClassLoader parent) {
         assert scriptText != null
         GroovyClassVisitor visitor = new VariableVisitor()
-        VisitorClassLoader myCL = new VisitorClassLoader(visitor)
+        VisitorClassLoader myCL = new VisitorClassLoader(visitor, parent)
         // simply by parsing the script with our classloader
         // our visitor will be called and will visit all the variables
         myCL.parseClass(scriptText)

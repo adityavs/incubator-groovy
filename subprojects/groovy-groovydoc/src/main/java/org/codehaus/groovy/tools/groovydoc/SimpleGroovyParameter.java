@@ -18,13 +18,15 @@
  */
 package org.codehaus.groovy.tools.groovydoc;
 
-import org.codehaus.groovy.groovydoc.*;
+import org.codehaus.groovy.groovydoc.GroovyAnnotationRef;
+import org.codehaus.groovy.groovydoc.GroovyParameter;
+import org.codehaus.groovy.groovydoc.GroovyType;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 public class SimpleGroovyParameter implements GroovyParameter {
-    private String name;
+    private final String name;
     private String typeName;
     private String defaultValue;
     private GroovyType type;
@@ -60,7 +62,7 @@ public class SimpleGroovyParameter implements GroovyParameter {
     }
 
     public GroovyAnnotationRef[] annotations() {
-        return annotationRefs.toArray(new GroovyAnnotationRef[annotationRefs.size()]);
+        return annotationRefs.toArray(new GroovyAnnotationRef[0]);
     }
 
     public void addAnnotationRef(GroovyAnnotationRef ref) {

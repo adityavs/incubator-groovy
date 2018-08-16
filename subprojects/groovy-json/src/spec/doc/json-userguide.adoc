@@ -1,8 +1,21 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
@@ -31,7 +44,7 @@ Notice the result is a plain map and can be handled like a normal Groovy object 
 given JSON as defined by the http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf[ECMA-404 JSON Interchange Standard]
 plus support for JavaScript comments and dates.
 
-In addition to maps `JsonSlurper` supports JSON arrays which are being converted to lists.
+In addition to maps `JsonSlurper` supports JSON arrays which are converted to lists.
 
 [source,groovy]
 ----
@@ -146,7 +159,7 @@ include::{rootProjectDir}/subprojects/groovy-json/src/spec/test/json/JsonTest.gr
 <<json-userguide.adoc#json_jsonslurper,JsonSlurper>>, being a JSON parser.
 
 `JsonOutput` comes with overloaded, static `toJson` methods. Each `toJson` implementation takes a different parameter type.
-The static method can either be used directly or by importing the methods with a static import statement.
+The static methods can either be used directly or by importing the methods with a static import statement.
 
 The result of a `toJson` call is a `String` containing the JSON code.
 
@@ -163,7 +176,31 @@ has support for serialising POGOs, that is, plain-old Groovy objects.
 include::{rootProjectDir}/subprojects/groovy-json/src/spec/test/json/JsonTest.groovy[tags=json_output_pogo,indent=0]
 ----
 
-As we saw in previous examples, the JSON output is not pretty printed per default. However, the `prettyPrint` method in `JsonSlurper` comes
+=== Customizing Output
+
+If you need control over the serialized output you can use a `JsonGenerator`.  The `JsonGenerator.Options` builder
+can be used to create a customized generator.  One or more options can be set on this builder in order to alter
+the resulting output.  When you are done setting the options simply call the `build()` method in order to get a fully
+configured instance that will generate output based on the options selected.
+
+[source,groovy]
+----
+include::{rootProjectDir}/subprojects/groovy-json/src/spec/test/json/JsonTest.groovy[tags=json_output_generator,indent=0]
+----
+
+A closure can be used to transform a type.  These closure converters are registered for a given type and will be
+called any time that type or a subtype is encountered.  The first parameter to the closure is an object matching the
+type for which the converter is registered and this parameter is required. The closure may take an optional second
+`String` parameter and this will be set to the key name if one is available.
+
+[source,groovy]
+----
+include::{rootProjectDir}/subprojects/groovy-json/src/spec/test/json/JsonTest.groovy[tags=json_output_converter,indent=0]
+----
+
+==== Formatted Output
+
+As we saw in previous examples, the JSON output is not pretty printed per default. However, the `prettyPrint` method in `JsonOutput` comes
 to rescue for this task.
 
 [source,groovy]
@@ -171,11 +208,14 @@ to rescue for this task.
 include::{rootProjectDir}/subprojects/groovy-json/src/spec/test/json/JsonTest.groovy[tags=pretty_print,indent=0]
 ----
 
-`prettyPrint` takes a `String` as single parameter. It must not be used in conjunction with the other `JsonOutput` methods,
-it can be applied on arbitrary JSON `String` instances.
+`prettyPrint` takes a `String` as single parameter; therefore, it can be applied on arbitrary JSON `String` instances, not only the result of
+`JsonOutput.toJson`.
 
-Another way to create JSON from Groovy is to use the `JsonBuilder` or `StreamingJsonBuilder`. Both builders provide a
-DSL which allows to formulate an object graph which is then converted to JSON at some point.
+=== Builders
+
+Another way to create JSON from Groovy is to use `JsonBuilder` or `StreamingJsonBuilder`. Both builders provide a
+DSL which allows to formulate an object graph which is then converted to JSON.
 
 [NOTE]
-For more details on builders, have a look at the builders chapter which covers both JSON builders in great depth.
+For more details on builders, have a look at the builders chapter which covers both <<core-domain-specific-languages.adoc#_jsonbuilder,JsonBuilder>>
+and <<core-domain-specific-languages.adoc#_streamingjsonbuilder,StreamingJsonBuilder>>.

@@ -558,4 +558,74 @@ class ScriptToTreeNodeAdapterTest extends GroovyTestCase {
                 ],
                 adapter)
     }
+
+    // GROOVY-4636
+    void testScriptWithObjectInitializers() {
+        ScriptToTreeNodeAdapter adapter = createAdapter(false, true, true)
+
+        def source = '''
+            class A {
+                int i = 0
+                A() {
+                    i = 5
+                }
+                {
+                    i *= 2
+                }
+            }
+            '''
+
+        assertTreeStructure(source, CompilePhase.CONVERSION,
+                [
+                        startsWith('ClassNode - A'),
+                        eq('Object Initializers'),
+                        contains('BlockStatement'),
+                        contains('BlockStatement'),
+                        contains('ExpressionStatement')
+                ],
+                adapter)
+
+    }
+
+    void testTraitObjectInitializers() {
+        ScriptToTreeNodeAdapter adapter = createAdapter(false, true, true)
+
+        def source = '''
+            trait Interceptor {
+                final Collection<String> matchers = new ArrayList<String>()
+                void matchAll() {
+                    matchers << 'foo'
+                }
+            }
+
+            class TestInterceptor implements Interceptor { }
+            '''
+
+        assertTreeStructure(source, CompilePhase.CANONICALIZATION,
+                [
+                        startsWith('ClassNode - TestInterceptor'),
+                        eq('Object Initializers'),
+                        eq('ExpressionStatement - MethodCallExpression')
+                ],
+                adapter)
+    }
+
+    void testCompileIndyBytecode() {
+        ScriptToTreeNodeAdapter adapter = createAdapter(true, false, false)
+        TreeNode root = adapter.compile('''
+            class Test {
+                void test() {}
+            }
+
+        ''', Phases.CLASS_GENERATION, true) as TreeNode
+
+        def classNodeTest = root.children().find { it.toString() == 'ClassNode - Test' }
+        def methods = classNodeTest.children().find { it.toString() == 'Methods' }
+        def methodNodeTest = methods.children().find { it.toString() == 'MethodNode - test' }
+
+        assert classNodeTest
+        assert methods
+        assert methodNodeTest
+    }
+
 }

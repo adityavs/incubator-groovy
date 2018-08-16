@@ -25,8 +25,8 @@ import org.codehaus.groovy.runtime.StringGroovyMethods;
 
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.util.Map;
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * A helper class for creating XML or HTML markup.
@@ -210,7 +210,7 @@ public class MarkupBuilder extends BuilderSupport {
     }
 
     /**
-     * Whether empty elements are expanded from <tagName/> to <tagName></tagName>.
+     * Whether empty elements are expanded from &lt;tagName/&gt; to &lt;tagName&gt;&lt;/tagName&gt;.
      *
      * @param expandEmptyElements if <code>true</code>, empty
      *                            elements will be represented by an opening tag
@@ -529,7 +529,7 @@ public class MarkupBuilder extends BuilderSupport {
         state = next;
     }
 
-    private Object getName(Object name) {
+    private static Object getName(Object name) {
         if (name instanceof QName) {
             return ((QName) name).getQualifiedName();
         }

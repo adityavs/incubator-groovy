@@ -75,7 +75,7 @@ class CollateTest extends GroovyTestCase {
   }
 
   void testEmpty() {
-    assert [].collate( 3 ) == [[]]
+    assert [].collate( 3 ) == []
   }
 
   void testZero() {
@@ -89,6 +89,13 @@ class CollateTest extends GroovyTestCase {
   void testNegativeStep() {
     // As soon as pos goes out of bounds, we get back what we are up to...
     assert [ 1, 2, 3 ].collate( 2, -1 ) == [[ 1, 2 ]]
+  }
+
+  void testZeroedStep() {
+    String message = shouldFail (IllegalArgumentException) {
+      [ 1, 2, 3 ].collate( 2, 0 )
+    }
+    assert message == 'step cannot be zero'
   }
 
   void testChaining() {

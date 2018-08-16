@@ -18,20 +18,20 @@
  */
 package org.codehaus.groovy.tools.shell
 
-import org.codehaus.groovy.control.SourceUnit
-import org.codehaus.groovy.control.CompilationFailedException
-import org.codehaus.groovy.tools.shell.util.Logger
-import org.codehaus.groovy.tools.shell.util.Preferences
+import antlr.RecognitionException
+import antlr.TokenStreamException
+import antlr.collections.AST
 import org.codehaus.groovy.antlr.SourceBuffer
 import org.codehaus.groovy.antlr.UnicodeEscapingReader
 import org.codehaus.groovy.antlr.parser.GroovyLexer
 import org.codehaus.groovy.antlr.parser.GroovyRecognizer
-import antlr.collections.AST
-import antlr.RecognitionException
-import antlr.TokenStreamException
+import org.codehaus.groovy.control.CompilationFailedException
+import org.codehaus.groovy.control.ParserVersion
+import org.codehaus.groovy.control.SourceUnit
+import org.codehaus.groovy.tools.shell.util.Logger
+import org.codehaus.groovy.tools.shell.util.Preferences
 
 import java.util.regex.Pattern
-
 
 interface Parsing {
     ParseStatus parse(final Collection<String> buffer)
@@ -156,6 +156,7 @@ final class RigidParser implements Parsing
 
         try {
             parser = SourceUnit.create(SCRIPT_FILENAME, source, /*tolerance*/ 1)
+            parser.getConfiguration().setParserVersion(ParserVersion.V_2) // We have to stick to the old parser before GROOVY-8279 is fixed
             parser.parse()
 
             log.debug('Parse complete')
@@ -181,7 +182,8 @@ final class RigidParser implements Parsing
                 // HACK: Super insane hack... we detect a syntax error, but might still ignore
                 // it depending on the line ending
                 if (ignoreSyntaxErrorForLineEnding(buffer[-1].trim()) ||
-                    isAnnotationExpression(e, buffer[-1].trim())) {
+                        isAnnotationExpression(e, buffer[-1].trim()) ||
+                        hasUnmatchedOpenBracketOrParen(source)) {
                     log.debug("Ignoring parse failure; might be valid: $e")
                 } else {
                     error = e
@@ -209,6 +211,25 @@ final class RigidParser implements Parsing
             }
         }
         return false
+    }
+
+    static boolean hasUnmatchedOpenBracketOrParen(String source) {
+        if (!source) {
+            return false
+        }
+        int parens = 0
+        int brackets = 0
+        for (ch in source) {
+            switch(ch) {
+                case '[': ++brackets; break;
+                case ']': --brackets; break;
+                case '(': ++parens; break;
+                case ')': --parens; break;
+                default:
+                    break
+            }
+        }
+        return (brackets > 0 || parens > 0)
     }
 
     static boolean isAnnotationExpression(CompilationFailedException e, String line) {

@@ -18,11 +18,13 @@
  */
 package gls.generics
 
+import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.MultipleCompilationErrorsException
+import org.codehaus.groovy.control.ParserVersion
 
 class GenericsTest extends GenericsTestBase {
 
-    public void testClassWithoutParameterExtendsClassWithFixedParameter() {
+    void testClassWithoutParameterExtendsClassWithFixedParameter() {
         createClassInfo """
             class B extends ArrayList<Long> {}
         """
@@ -31,56 +33,56 @@ class GenericsTest extends GenericsTestBase {
         ]
     }
 
-    public void testMultipleImplementsWithParameter() {
+    void testMultipleImplementsWithParameter() {
         createClassInfo """
             abstract class B<T> implements Runnable,List<T> {}
         """
         assert signatures == ["class": "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/lang/Runnable;Ljava/util/List<TT;>;Lgroovy/lang/GroovyObject;"]
     }
 
-    public void testImplementsWithParameter() {
+    void testImplementsWithParameter() {
         createClassInfo """
             abstract class B<T> implements List<T> {}
         """
         assert signatures == ["class": "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/util/List<TT;>;Lgroovy/lang/GroovyObject;"]
     }
 
-    public void testExtendsWithParameter() {
+    void testExtendsWithParameter() {
         createClassInfo """
             class B<T> extends ArrayList<T> {}
         """
         assert signatures == ["class": "<T:Ljava/lang/Object;>Ljava/util/ArrayList<TT;>;Lgroovy/lang/GroovyObject;"]
     }
 
-    public void testNestedExtendsWithParameter() {
+    void testNestedExtendsWithParameter() {
         createClassInfo """
             class B<T> extends HashMap<T,List<T>> {}
         """
         assert signatures == ["class": "<T:Ljava/lang/Object;>Ljava/util/HashMap<TT;Ljava/util/List<TT;>;>;Lgroovy/lang/GroovyObject;"]
     }
 
-    public void testBoundInterface() {
+    void testBoundInterface() {
         createClassInfo """
             class B<T extends List> {}
         """
         assert signatures == ["class": "<T::Ljava/util/List;>Ljava/lang/Object;Lgroovy/lang/GroovyObject;"]
     }
 
-    public void testNestedReuseOfParameter() {
+    void testNestedReuseOfParameter() {
         createClassInfo """
             class B<Y,T extends Map<String,Map<Y,Integer>>> {}
         """
         assert signatures == ["class": "<Y:Ljava/lang/Object;T::Ljava/util/Map<Ljava/lang/String;Ljava/util/Map<TY;Ljava/lang/Integer;>;>;>Ljava/lang/Object;Lgroovy/lang/GroovyObject;"]
     }
 
-    public void testFieldWithParameter() {
+    void testFieldWithParameter() {
         createClassInfo """
             class B { public Collection<Integer> books }
         """
         assert signatures == [books: "Ljava/util/Collection<Ljava/lang/Integer;>;"]
     }
 
-    public void testFieldReusedParameter() {
+    void testFieldReusedParameter() {
         createClassInfo """
             class B<T> { public Collection<T> collection }
         """
@@ -88,7 +90,7 @@ class GenericsTest extends GenericsTestBase {
                 collection: "Ljava/util/Collection<TT;>;"]
     }
 
-    public void testParameterAsReturnType() {
+    void testParameterAsReturnType() {
         createClassInfo """
             class B {
                 static <T> T foo() {return null}
@@ -97,7 +99,7 @@ class GenericsTest extends GenericsTestBase {
         assert signatures == ["foo()Ljava/lang/Object;": "<T:Ljava/lang/Object;>()TT;"]
     }
 
-    public void testParameterAsReturnTypeAndParameter() {
+    void testParameterAsReturnTypeAndParameter() {
         createClassInfo """
             class B {
                 static <T> T foo(T t) {return null}
@@ -106,7 +108,7 @@ class GenericsTest extends GenericsTestBase {
         assert signatures == ["foo(Ljava/lang/Object;)Ljava/lang/Object;": "<T:Ljava/lang/Object;>(TT;)TT;"]
     }
 
-    public void testParameterAsMethodParameter() {
+    void testParameterAsMethodParameter() {
         createClassInfo """
             class B<T> {
                 void foo(T t){}
@@ -116,7 +118,7 @@ class GenericsTest extends GenericsTestBase {
                 "foo(Ljava/lang/Object;)V": "(TT;)V"]
     }
 
-    public void testParameterAsNestedMethodParameter() {
+    void testParameterAsNestedMethodParameter() {
         createClassInfo """
             class B<T> {
                 void foo(List<T> t){}
@@ -126,7 +128,7 @@ class GenericsTest extends GenericsTestBase {
                 "foo(Ljava/util/List;)V": "(Ljava/util/List<TT;>;)V"]
     }
 
-    public void testParameterAsNestedMethodParameterReturningInterface() {
+    void testParameterAsNestedMethodParameterReturningInterface() {
         createClassInfo """
             class B<T> {
                 Cloneable foo(List<T> t){}
@@ -136,7 +138,7 @@ class GenericsTest extends GenericsTestBase {
                 "foo(Ljava/util/List;)Ljava/lang/Cloneable;": "(Ljava/util/List<TT;>;)Ljava/lang/Cloneable;"]
     }
 
-    public void testArray() {
+    void testArray() {
         createClassInfo """
             class B<T> {
                 T[] get(T[] arr) {return null}
@@ -146,7 +148,7 @@ class GenericsTest extends GenericsTestBase {
                 "get([Ljava/lang/Object;)[Ljava/lang/Object;": "([TT;)[TT;"]
     }
 
-    public void testMultipleBounds() {
+    void testMultipleBounds() {
         createClassInfo """
             class Pair<    A extends Comparable<A> & Cloneable , 
                         B extends Cloneable & Comparable<B> > 
@@ -161,7 +163,7 @@ class GenericsTest extends GenericsTestBase {
                         "bar()Ljava/lang/Cloneable;": "()TB;"]
     }
 
-    public void testWildCard() {
+    void testWildCard() {
         createClassInfo """
             class B {
                 private Collection<?> f1 
@@ -192,7 +194,7 @@ class GenericsTest extends GenericsTestBase {
         ]
     }
 
-    public void testParameterAsParameterForReturnTypeAndFieldClass() {
+    void testParameterAsParameterForReturnTypeAndFieldClass() {
         createClassInfo """
                public class B<T> {
                    private T owner;
@@ -207,7 +209,7 @@ class GenericsTest extends GenericsTestBase {
         ]
     }
 
-    public void testInterfaceWithParameter() {
+    void testInterfaceWithParameter() {
         createClassInfo """
             interface B<T> {}
         """
@@ -215,7 +217,7 @@ class GenericsTest extends GenericsTestBase {
     }
 
 
-    public void testTypeParamAsBound() {
+    void testTypeParamAsBound() {
         createClassInfo """
     class Box<A> {
       public <V extends A> void foo(V v) {
@@ -226,7 +228,7 @@ class GenericsTest extends GenericsTestBase {
         assert signatures == ["foo(Ljava/lang/Object;)V": "<V:TA;>(TV;)V", "class": "<A:Ljava/lang/Object;>Ljava/lang/Object;Lgroovy/lang/GroovyObject;"]
     }
 
-    public void testInvalidParameterUsage() {
+    void testInvalidParameterUsage() {
         shouldNotCompile """
             abstract class B<T> implements Map<T>{}
         """
@@ -323,9 +325,9 @@ class GenericsTest extends GenericsTestBase {
     }
 
     void testGenericsDiamondShortcutIllegalPosition() {
-        assertScriptAndVerifyCompilationError """
+        shouldFailCompilationWithAnyMessage '''
             List<> list4 = []
-        """, 'unexpected token: <'
+        ''', ['unexpected token: <', 'Unexpected input: \'<\'']
     }
 
     void testGenericsInAsType() {
@@ -356,55 +358,118 @@ import java.util.concurrent.atomic.AtomicInteger
     }
 
     void testCompilationWithMissingClosingBracketsInGenerics() {
-        assertScriptAndVerifyCompilationError """
-            def list1 = new ArrayList<Integer()
-        """
+        if (ParserVersion.V_2 == CompilerConfiguration.DEFAULT.parserVersion) {
+            shouldFailCompilationWithExpectedMessage """
+                def list1 = new ArrayList<Integer()
+            """
 
-        assertScriptAndVerifyCompilationError """
-            List<Integer list2 = new ArrayList<Integer>()
-        """
+            shouldFailCompilationWithExpectedMessage """
+                List<Integer list2 = new ArrayList<Integer>()
+            """
 
-        assertScriptAndVerifyCompilationError """
-            def c = []
-            for (Iterator<String i = c.iterator(); i.hasNext(); ) { }
-        """
+            shouldFailCompilationWithExpectedMessage """
+                def c = []
+                for (Iterator<String i = c.iterator(); i.hasNext(); ) { }
+            """
 
-        assertScriptAndVerifyCompilationError """
-            def m(Class<Integer someParam) {}
-        """
+            shouldFailCompilationWithExpectedMessage """
+                def m(Class<Integer someParam) {}
+            """
 
-        assertScriptAndVerifyCompilationError """
-            abstract class ArrayList1<E extends AbstractList<E> implements List<E> {}
-        """
+            shouldFailCompilationWithExpectedMessage """
+                abstract class ArrayList1<E extends AbstractList<E> implements List<E> {}
+            """
 
-        assertScriptAndVerifyCompilationError """
-            abstract class ArrayList2<E> extends AbstractList<E implements List<E> {}
-        """
+            shouldFailCompilationWithExpectedMessage """
+                abstract class ArrayList2<E> extends AbstractList<E implements List<E> {}
+            """
 
-        assertScriptAndVerifyCompilationError """
-            abstract class ArrayList3<E> extends AbstractList<E> implements List<E {}
-        """
+            shouldFailCompilationWithExpectedMessage """
+                abstract class ArrayList3<E> extends AbstractList<E> implements List<E {}
+            """
 
-        assertScriptAndVerifyCompilationError """
-            def List<List<Integer> history = new ArrayList<List<Integer>>()
-        """
+            shouldFailCompilationWithExpectedMessage """
+                def List<List<Integer> history = new ArrayList<List<Integer>>()
+            """
 
-        assertScriptAndVerifyCompilationError """
-            def List<List<Integer>> history = new ArrayList<List<Integer>()
-        """
+            shouldFailCompilationWithExpectedMessage """
+                def List<List<Integer>> history = new ArrayList<List<Integer>()
+            """
+        } else {
+            shouldFailCompilationWithMessage """
+                def list1 = new ArrayList<Integer()
+            """, "Unexpected input: 'new ArrayList<Integer('"
+
+            shouldFailCompilationWithMessage """
+                List<Integer list2 = new ArrayList<Integer>()
+            """, "Unexpected input: 'List<Integer list2'"
+
+            shouldFailCompilationWithMessage """
+                def c = []
+                for (Iterator<String i = c.iterator(); i.hasNext(); ) { }
+            """, "Unexpected input: 'Iterator<String i'"
+
+            shouldFailCompilationWithMessage """
+                def m(Class<Integer someParam) {}
+            """, "Unexpected input: 'Class<Integer someParam'"
+
+            shouldFailCompilationWithMessage """
+                abstract class ArrayList1<E extends AbstractList<E> implements List<E> {}
+            """, "Unexpected input: 'implements'"
+
+            shouldFailCompilationWithMessage """
+                abstract class ArrayList2<E> extends AbstractList<E implements List<E> {}
+            """, "Unexpected input: 'AbstractList<E implements'"
+
+            shouldFailCompilationWithMessage """
+                abstract class ArrayList3<E> extends AbstractList<E> implements List<E {}
+            """, "Unexpected input: '<'"
+
+            shouldFailCompilationWithMessage """
+                def List<List<Integer> history = new ArrayList<List<Integer>>()
+            """, "Unexpected input: 'def List<List<Integer> history'"
+
+            shouldFailCompilationWithMessage """
+                def List<List<Integer>> history = new ArrayList<List<Integer>()
+            """, "Unexpected input: 'new ArrayList<List<Integer>('"
+        }
     }
 
-    private void assertScriptAndVerifyCompilationError(scriptText) {
-        assertScriptAndVerifyCompilationError(scriptText, "Missing closing bracket '>' for generics types")
+    private void shouldFailCompilationWithExpectedMessage(scriptText) {
+        shouldFailCompilationWithMessage scriptText, "Missing closing bracket '>' for generics types"
     }
 
-    private void assertScriptAndVerifyCompilationError(scriptText, errorMessage) {
+
+    private void shouldFailCompilationWithMessage(scriptText, String errorMessage) {
+        shouldFailCompilationWithMessages(scriptText, [errorMessage])
+    }
+
+    private void shouldFailCompilationWithMessages(scriptText, List<String> errorMessages) {
         try {
             assertScript scriptText
-            fail("The script compilation should have failed as it contains mis-matching generic brackets")
+            fail("The script compilation should have failed as it contains generics errors, e.g. mis-matching generic brackets")
         } catch (MultipleCompilationErrorsException mcee) {
-            def text = mcee.toString();
-            assert text.contains(errorMessage)
+            def text = mcee.toString()
+            errorMessages.each {
+                assert text.contains(it)
+            }
+        }
+    }
+
+    private void shouldFailCompilationWithAnyMessage(scriptText, List<String> errorMessages) {
+        try {
+            assertScript scriptText
+            fail("The script compilation should have failed as it contains generics errors, e.g. mis-matching generic brackets")
+        } catch (MultipleCompilationErrorsException mcee) {
+            def text = mcee.toString()
+
+            for (errorMessage in errorMessages) {
+                if (text.contains(errorMessage)) {
+                    return
+                }
+            }
+
+            assert false, text + " can not match any expected error message: " + errorMessages
         }
     }
 
@@ -440,11 +505,85 @@ import java.util.concurrent.atomic.AtomicInteger
         '''
     }
 
-    public void "test method with generic return type defined at class level"() {
+    void "test method with generic return type defined at class level"() {
         // class Bar should compile successfully
 
         // the classes it references should be available as class files to check for ASM resolving
         //  so they're defined in compiled GenericsTestData and not loaded from text in the test
         createClassInfo 'class Bar extends gls.generics.GenericsTestData.Abstract<String> {}'
+    }
+
+    void testFriendlyErrorMessageForGenericsArityErrorsGroovy7865() {
+        shouldFailCompilationWithMessages '''
+            class MyList extends ArrayList<String, String> {}
+        ''', ['(supplied with 2 type parameters)', 'which takes 1 parameter']
+
+        if (ParserVersion.V_2 == CompilerConfiguration.DEFAULT.parserVersion) {
+            shouldFailCompilationWithMessages '''
+                class MyList extends ArrayList<> {}
+            ''', ['(supplied with 0 type parameters)', 'which takes 1 parameter', 'invalid Diamond <> usage?']
+        } else {
+            shouldFailCompilationWithMessages '''
+                class MyList extends ArrayList<> {}
+            ''', ['Unexpected input: \'ArrayList<>\'']
+        }
+
+        shouldFailCompilationWithMessages '''
+            class MyMap extends HashMap<String> {}
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        shouldFailCompilationWithMessages '''
+            class MyList implements List<String, String> {}
+        ''', ['(supplied with 2 type parameters)', 'which takes 1 parameter']
+
+        if (ParserVersion.V_2 == CompilerConfiguration.DEFAULT.parserVersion) {
+            shouldFailCompilationWithMessages '''
+                class MyList implements Map<> {}
+            ''', ['(supplied with 0 type parameters)', 'which takes 2 parameters', 'invalid Diamond <> usage?']
+        } else {
+            shouldFailCompilationWithMessages '''
+                class MyList implements Map<> {}
+            ''', ['Unexpected input: \'<\'']
+        }
+
+
+        shouldFailCompilationWithMessages '''
+            class MyMap implements Map<String> {}
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        shouldFailCompilationWithMessages '''
+            List<String> ss = new LinkedList<Integer, String>()
+        ''', ['(supplied with 2 type parameters)', 'which takes 1 parameter']
+        shouldFailCompilationWithMessage '''
+            List<String> ss = new LinkedList<>(){}
+        ''', 'Cannot use diamond <> with anonymous inner classes'
+        shouldFailCompilationWithMessages '''
+            List<String> ss = new LinkedList<String, String>(){}
+        ''', ['(supplied with 2 type parameters)', 'which takes 1 parameter']
+        shouldFailCompilationWithMessages '''
+            List<String> ss = new LinkedList<String, String>()
+        ''', ['supplied with 2 type parameters', 'which takes 1 parameter']
+        shouldFailCompilationWithMessages '''
+            def now = new Date<Calendar>()
+        ''', ['supplied with 1 type parameter', 'which takes no parameters']
+        shouldFailCompilationWithMessages '''
+            def method(Map<String> map) { map.toString() }
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        shouldFailCompilationWithMessages '''
+            def method(Map<String, Map<String>> map) { map.toString() }
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        shouldFailCompilationWithMessages '''
+            class MyClass { Map<String> map }
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        shouldFailCompilationWithMessages '''
+            class MyClass { Map<String, Map<String>> map }
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        shouldFailCompilationWithMessages '''
+             def method() { Map<String> map }
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        shouldFailCompilationWithMessages '''
+             def method() { Map<String, Map<String>> map }
+        ''', ['(supplied with 1 type parameter)', 'which takes 2 parameters']
+        assertScript '''
+            List<String> ss = new LinkedList<>()
+        '''
     }
 }

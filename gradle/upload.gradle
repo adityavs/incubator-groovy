@@ -17,113 +17,207 @@
  *  under the License.
  */
 
-boolean isUsingBintray = rootProject.hasProperty('bintrayUser') && rootProject.bintrayUser &&
-        rootProject.hasProperty('bintrayPassword') && rootProject.bintrayPassword
+boolean isUsingArtifactory = rootProject.hasProperty('artifactoryUser') && rootProject.artifactoryUser &&
+        rootProject.hasProperty('artifactoryPassword') && rootProject.artifactoryPassword
 
-if (isUsingBintray) {
-    logger.lifecycle 'Deployment environment set to Bintray'
+if (isUsingArtifactory) {
+    logger.lifecycle 'Deployment environment set to Artifactory'
 }
 
+def embedded = ['asm', 'asm-util', 'asm-analysis', 'asm-tree', 'asm-commons', 'antlr', 'commons-cli', 'openbeans']
 def removeJarjaredDependencies = { p ->
     p.dependencies.removeAll(p.dependencies.findAll {
-        it.groupId == 'org.codehaus.groovy' ||
-                (['asm', 'asm-util', 'asm-analysis', 'asm-tree', 'asm-commons', 'antlr', 'commons-cli'].contains(it.artifactId))
+        it.groupId == 'org.codehaus.groovy' || embedded.contains(it.artifactId)
     })
 }
 
-
 allprojects {
-    apply plugin: 'maven'
-    apply from: "${rootProject.projectDir}/gradle/pomconfigurer.gradle"
+    if (project == rootProject || modules().contains(project)) {
+        apply plugin: 'maven'
+        apply from: "${rootProject.projectDir}/gradle/pomconfigurer.gradle"
+        install.dependsOn checkCompatibility
+    }
 }
 
 apply from: 'gradle/backports.gradle'
 
+ext.basename = { String s -> s.take(s.lastIndexOf('.')) }
+ext.deriveFile = { File archive, String suffix -> new File(archive.parent, basename(archive.name) + "-${suffix}.jar") }
+
 allprojects {
-
-    configurations {
-        deployerJars
-    }
-
-    uploadArchives {
-        repositories {
-            mavenDeployer {
-                configuration = configurations.deployerJars
-                pom pomConfigureClosure
+    if (project == rootProject || modules().contains(project)) {
+        ext.addSigFile = { File sigFile, c, ext, n ->
+            if (sigFile.exists()) {
+                project.artifacts.add('archives', sigFile) {
+                    if (n) {
+                        name = n
+                    }
+                    classifier = c
+                    type = 'asc'
+                    extension = ext
+                }
             }
         }
-    }
-
-    install {
-        repositories {
-            mavenInstaller {
-                pom pomConfigureClosure
+        ext.signWithClassifier = { String c, File f ->
+            if (rootProject.isReleaseVersion) {
+                signing.sign(c, f)
+                def ascFile = new File(f.parent, f.name + '.asc')
+                addSigFile(ascFile, c, 'jar.asc', null)
             }
         }
-    }
-
-    artifacts {
-        archives jar
-        archives sourceJar
-        archives javadocJar
-        archives groovydocJar
-    }
-
-    [uploadArchives, install]*.with {
-        // dependency on jarAllAll should in theory be replaced with jar, jarWithIndy but
-        // in practice, it is faster
-        dependsOn([jarAllAll, sourceJar, javadocJar, groovydocJar])
-        doFirst {
-            if (rootProject.useIndy()) {
-                new GradleException('You cannot use uploadArchives or install task with the flag [indy] turned'
-                        +' on because the build handles indy artifacts by itself in that case.')
+        ext.signWithName = { String baseName, File f ->
+            if (rootProject.isReleaseVersion) {
+                signing.sign(null, f)
+                def ascFile = new File(f.parent, f.name + '.asc')
+                addSigFile(ascFile, null, 'jar.asc', baseName)
             }
-            def archive = jar.archivePath
-            def indyJar = new File(archive.parent, archive.name[0..archive.name.lastIndexOf('.')-1]+'-indy.jar')
-            if (indyJar.exists()) {
-                project.artifacts.add('archives', indyJar)
+        }
+        ext.signArchiveTask = { archiveTask ->
+            if (rootProject.isReleaseVersion) {
+                signing.sign(archiveTask.classifier, archiveTask.archivePath)
+                def ascFile = new File(archiveTask.destinationDir, archiveTask.archiveName + '.asc')
+                addSigFile(ascFile, archiveTask.classifier, archiveTask.extension + '.asc', archiveTask.baseName)
             }
-            def grooidJar = new File(archive.parent, archive.name[0..archive.name.lastIndexOf('.')-1]+'-grooid.jar')
-            if (grooidJar.exists()) {
-                project.artifacts.add('archives', grooidJar)
+        }
+
+        uploadArchives {
+            repositories {
+                mavenDeployer {
+                    pom pomConfigureClosure
+                    beforeDeployment { MavenDeployment deployment -> if (rootProject.isReleaseVersion) signing.signPom(deployment) }
+                }
+            }
+        }
+
+        install {
+            repositories {
+                mavenInstaller {
+                    pom pomConfigureClosure
+                    beforeDeployment { MavenDeployment deployment -> if (rootProject.isReleaseVersion) signing.signPom(deployment) }
+                }
+            }
+        }
+
+        artifacts {
+            archives jarjar.outputFile
+            archives sourceJar
+            archives javadocJar
+            archives groovydocJar
+        }
+
+        configurations.archives.with {
+            artifacts.removeAll(artifacts.find { it.name =~ 'raw' } )
+        }
+
+        [uploadArchives, install]*.with {
+            dependsOn([grooidjar, jarjar, sourceJar, javadocJar, groovydocJar])
+            if (rootProject.indyCapable()) {
+                dependsOn jarjarWithIndy
+            }
+            doFirst {
+                if (rootProject.indyCapable()) {
+                    project.artifacts.add('archives', jarjarWithIndy.outputFile)
+                }
+                def grooidJarFile = rootProject.ext.deriveFile(jarjar.outputFile, 'grooid')
+                if (grooidJarFile.exists()) {
+                    project.artifacts.add('archives', grooidJarFile)
+                }
+            }
+        }
+
+        install {
+            doFirst {
+                // gradle doesn't expect us to mutate configurations like we do here
+                // so signing the configuration won't work and we do it manually here
+                signWithName(jar.baseName, jarjar.outputFile)
+                signArchiveTask(sourceJar)
+                signArchiveTask(javadocJar)
+                signArchiveTask(groovydocJar)
+                def indyJar = rootProject.ext.deriveFile(jarjar.outputFile, 'indy')
+                if (indyJar.exists()) {
+                    signWithClassifier('indy', indyJar)
+                }
+                def grooidJarFile = rootProject.ext.deriveFile(jarjar.outputFile, 'grooid')
+                if (grooidJarFile.exists()) {
+                    signWithClassifier('grooid', grooidJarFile)
+                }
             }
         }
     }
 }
 
-// the root project generates an alternate 'groovy-all' artifact
+// the root project generates several alternate artifacts, e.g. 'groovy-all'
+// we don't want them in the root project so add them as artifacts with a modified name
+// we'll exclude the original artifacts during publication with an exclude pattern
 [uploadArchives, install]*.with {
-    dependsOn([sourceAllJar, javadocAllJar, groovydocAllJar, distBin])
+    dependsOn([sourceAllJar, javadocAllJar, groovydocAllJar, distBin, distDoc, dist, distBin])
     doFirst {
-        project.artifacts.add('archives', jarAll)
-        project.artifacts.add('archives', sourceAllJar)
-        project.artifacts.add('archives', javadocAllJar)
-        project.artifacts.add('archives', groovydocAllJar)
-        project.artifacts.add('archives', distBin)
+        if (!rootProject.indyCapable()) {
+            throw new GradleException("Indy must be enabled to upload archives")
+        }
+
+        project.artifacts.add('archives', distBin) { name = 'groovy-binary' }
+        project.artifacts.add('archives', sourceAllJar) { name = 'groovy-all' }
+        project.artifacts.add('archives', javadocAllJar) { name = 'groovy-all' }
+        project.artifacts.add('archives', groovydocAllJar) { name = 'groovy-all' }
+        signArchiveTask(sourceAllJar)
+        signArchiveTask(javadocAllJar)
+        signArchiveTask(groovydocAllJar)
+
+        if (isReleaseVersion) {
+            signing.sign(distBin.archivePath)
+            def ascFile = new File(distBin.destinationDir, distBin.archiveName + '.asc')
+            if (ascFile.exists()) {
+                project.artifacts.add('archives', ascFile) {
+                    name = 'groovy-binary'
+                    type = 'asc'
+                    extension = 'zip.asc'
+                }
+            }
+            signing.sign(distSrc.archivePath)
+            signing.sign(distDoc.archivePath)
+            signing.sign(dist.archivePath)
+        }
+
         tasks.withType(Jar).matching { it.name.startsWith('backport') }.each { t ->
             project.artifacts.add('archives', t.archivePath) {
                 name = t.baseName
                 type = 'jar'
+                classifier = t.classifier
             }
-        }
-
-        def archive = jarAll.archivePath
-        def indyJar = new File(archive.parent, archive.name[0..archive.name.lastIndexOf('.')-1] + '-indy.jar')
-        if (indyJar.exists()) {
-            project.artifacts.add('archives', indyJar)
-        }
-        def grooidJar = new File(archive.parent, archive.name[0..archive.name.lastIndexOf('.')-1]+'-grooid.jar')
-        if (grooidJar.exists()) {
-            project.artifacts.add('archives', grooidJar)
+            if (isReleaseVersion) {
+                signing.sign(t.classifier, t.archivePath)
+                def ascFile = new File(t.destinationDir, t.archiveName + '.asc')
+                if (ascFile.exists()) {
+                    project.artifacts.add('archives', ascFile) {
+                        name = t.baseName
+                        classifier = t.classifier
+                        type = 'asc'
+                        extension = t.extension + '.asc'
+                    }
+                }
+            }
         }
     }
 }
+
+def optionalModules = [
+        'groovy-bsf',
+        'groovy-cli-commons',
+        'groovy-dateutil',
+        'groovy-jaxb'
+]
+
 ext.pomAll = {
     addFilter('groovy') { artifact, file ->
-        !(artifact.name.contains('groovy-all')) && !(artifact.name.contains('groovy-binary')) && !(artifact.name.contains('backport'))
+        !(artifact.name.contains('groovy-all')) &&
+                !(artifact.name.contains('groovy-binary')) &&
+                !(artifact.name.contains('backport'))
     }
     addFilter('all') { artifact, file ->
-        artifact.name.contains('groovy-all')
+        // add an arbitrary artifact, so that the pom file is generated
+        // we adjust the packaging attribute later
+        artifact.name.contains('groovy-binary')
     }
     addFilter('binary') { artifact, file ->
         artifact.name.contains('groovy-binary')
@@ -136,10 +230,6 @@ ext.pomAll = {
 
     // regular pom
     def groovypom = pom('groovy', pomConfigureClosure)
-
-    // pom for 'all'
-    def allpom = pom('all', pomConfigureClosure)
-    allpom.artifactId = 'groovy-all'
 
     // pom for binary zip
     def binarypom = pom('binary', pomConfigureClosureWithoutTweaks)
@@ -155,24 +245,33 @@ ext.pomAll = {
         }
     }
 
-    modules().each { sp ->
-        sp.install.repositories.mavenInstaller.pom.whenConfigured { subpom ->
-            // add dependencies of other modules
-            allpom.dependencies.addAll(subpom.dependencies)
-        }
-        sp.uploadArchives.repositories.mavenDeployer.pom.whenConfigured { subpom ->
-            // add dependencies of other modules
-            allpom.dependencies.addAll(subpom.dependencies)
-        }
-    }
-
-
     groovypom.whenConfigured(removeJarjaredDependencies)
-    allpom.whenConfigured(removeJarjaredDependencies)
 
     binarypom.whenConfigured { p ->
         p.dependencies.clear()
     }
+
+    // pom for "all" dependencies
+    def allpom = pom('all', pomConfigureClosureWithoutTweaks)
+    allpom.artifactId = 'groovy-all'
+    allpom.whenConfigured { p ->
+        // this is the only way to get a handle on `maven.Dependency`
+        def dependencyClass = p.dependencies[0].getClass()
+        p.dependencies.clear()
+        // defer setting packaging until here otherwise gets overwritten
+        p.packaging = 'pom'
+        allprojects {
+            if (it.name.startsWith('groovy') && !optionalModules.contains(it.name)) {
+                def dep = dependencyClass.newInstance()
+                dep.groupId = 'org.codehaus.groovy'
+                dep.artifactId = it.name
+                dep.version = version
+                p.dependencies.add(dep)
+            }
+        }
+    }
+
+    beforeDeployment { MavenDeployment deployment -> if (isReleaseVersion) signing.signPom(deployment) }
 }
 
 install {
@@ -190,4 +289,3 @@ uploadArchives {
         mavenDeployer pomAll
     }
 }
-

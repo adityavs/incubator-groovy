@@ -19,6 +19,7 @@
 package groovy.transform.stc
 
 import groovy.transform.NotYetImplemented
+import org.codehaus.groovy.control.ParserVersion
 
 /**
  * Unit tests for static type checking : generics.
@@ -49,7 +50,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
         shouldFailWithMessages '''
             List<String> list = []
             list.add(1)
-        ''', "Cannot call java.util.List <String>#add(java.lang.String) with arguments [int]"
+        ''', "[Static type checking] - Cannot find matching method java.util.List#add(int)"
     }
 
     void testAddOnList2() {
@@ -75,7 +76,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
         shouldFailWithMessages '''
             List<String> list = []
             list << 1
-        ''', 'Cannot call <T> java.util.List <String>#leftShift(T) with arguments [int]'
+        ''', '[Static type checking] - Cannot find matching method java.util.List#leftShift(int)'
     }
 
     void testAddOnList2UsingLeftShift() {
@@ -87,6 +88,14 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
         assertScript '''
             List<Integer> list = []
             list << 1
+        '''
+    }
+
+    void testAddOnListWithParameterizedTypeLeftShift() {
+        assertScript '''
+            class Trie<T> {}
+            List<Trie<String>> list = []
+            list << new Trie<String>()
         '''
     }
 
@@ -115,14 +124,14 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
         shouldFailWithMessages '''
             List<Integer> list = new LinkedList<>()
             list.add 'Hello'
-        ''', 'Cannot call java.util.LinkedList <java.lang.Integer>#add(java.lang.Integer) with arguments [java.lang.String]'
+        ''', '[Static type checking] - Cannot call java.util.LinkedList <java.lang.Integer>#add(java.lang.Integer) with arguments [java.lang.String]'
     }
 
     void testAddOnListWithDiamondAndWrongTypeUsingLeftShift() {
         shouldFailWithMessages '''
             List<Integer> list = new LinkedList<>()
             list << 'Hello'
-        ''', 'Cannot call <T> java.util.LinkedList <java.lang.Integer>#leftShift(T) with arguments [java.lang.String]'
+        ''', '[Static type checking] - Cannot call <T> java.util.LinkedList <java.lang.Integer>#leftShift(T) with arguments [java.lang.String]'
     }
 
     void testAddOnListWithDiamondAndNullUsingLeftShift() {
@@ -201,7 +210,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
         ''', 'Cannot call java.util.LinkedList <String>#<init>(java.util.Collection <java.lang.Object extends java.lang.String>) with arguments [java.util.List <java.lang.Integer>]'
     }
 
-    void testCompatibleGenericAssignmentWithInferrence() {
+    void testCompatibleGenericAssignmentWithInference() {
         shouldFailWithMessages '''
             List<String> elements = ['a','b', 1]
         ''', 'Incompatible generic argument types. Cannot assign java.util.List <java.io.Serializable> to: java.util.List <String>'
@@ -423,7 +432,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
         shouldFailWithMessages '''
             Map<String, Integer> map = new HashMap<String,Integer>()
             map.put('hello', new Object())
-        ''', 'Cannot call java.util.HashMap <String, Integer>#put(java.lang.String, java.lang.Integer) with arguments [java.lang.String, java.lang.Object]'
+        ''', '[Static type checking] - Cannot call java.util.HashMap <String, Integer>#put(java.lang.String, java.lang.Integer) with arguments [java.lang.String, java.lang.Object]'
     }
 
     void testPutMethodWithPrimitiveValueAndArrayPut() {
@@ -434,7 +443,8 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
     }
 
     void testShouldComplainAboutToInteger() {
-        shouldFailWithMessages '''
+
+        String code = '''
             class Test {
                 static test2() {
                     if (new Random().nextBoolean()) {
@@ -455,7 +465,15 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
                 }
             }
             new Test()
-        ''', 'Cannot find matching method java.lang.Object#getAt(int)'
+        '''
+
+        if (ParserVersion.V_2 == config.parserVersion) {
+            shouldFailWithMessages code, 'Cannot find matching method java.lang.Object#getAt(int)'
+        } else {
+            shouldFailWithMessages code,
+                    'Cannot find matching method java.lang.Object#getAt(int)',
+                    'Cannot find matching method java.lang.Object#toInteger()'
+        }
     }
 
     void testAssignmentOfNewInstance() {
@@ -494,7 +512,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
             }
         }
         new ClassB()
-        ''', 'Cannot call <X> groovy.transform.stc.GenericsSTCTest$ClassA <Long>#bar(java.lang.Class <Long>) with arguments [java.lang.Class <java.lang.Object extends java.lang.Object>]'
+        ''', 'Cannot call <X> groovy.transform.stc.GenericsSTCTest$ClassA <Long>#bar(java.lang.Class <Long>) with arguments [java.lang.Class <? extends java.lang.Object>]'
     }
 
     // GROOVY-5516
@@ -572,7 +590,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
     // GROOVY-5594
     void testMapEntryUsingPropertyNotation() {
         assertScript '''
-        Map.Entry<Date, Integer> entry
+        Map.Entry<Date, Integer> entry = null
 
         @ASTTest(phase=INSTRUCTION_SELECTION, value={
             assert node.getNodeMetaData(INFERRED_TYPE) == make(Date)
@@ -588,7 +606,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
 
     void testInferenceFromMap() {
         assertScript '''
-        Map<Date, Integer> map
+        Map<Date, Integer> map = [:]
 
         @ASTTest(phase=INSTRUCTION_SELECTION, value={
             def infType = node.getNodeMetaData(INFERRED_TYPE)
@@ -604,7 +622,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
 
     void testInferenceFromListOfMaps() {
         assertScript '''
-        List<Map<Date, Integer>> maps
+        List<Map<Date, Integer>> maps = []
 
         @ASTTest(phase=INSTRUCTION_SELECTION, value={
             def listType = node.getNodeMetaData(INFERRED_TYPE)
@@ -739,7 +757,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
             })
             Map<Date, Date> map = new HashMap<>()
             map.put('foo', new Date())
-        ''', 'Cannot call java.util.HashMap <java.util.Date, java.util.Date>#put(java.util.Date, java.util.Date) with arguments [java.lang.String, java.util.Date]'
+        ''', '[Static type checking] - Cannot call java.util.HashMap <java.util.Date, java.util.Date>#put(java.util.Date, java.util.Date) with arguments [java.lang.String, java.util.Date]'
     }
     void testInferDiamondForAssignmentWithDatesAndIllegalKeyUsingSquareBracket() {
         shouldFailWithMessages '''
@@ -777,7 +795,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
             })
             Map<Date, Date> map = new HashMap<>()
             map.put(new Date(), 'foo')
-        ''', 'Cannot call java.util.HashMap <java.util.Date, java.util.Date>#put(java.util.Date, java.util.Date) with arguments [java.util.Date, java.lang.String]'
+        ''', '[Static type checking] - Cannot call java.util.HashMap <java.util.Date, java.util.Date>#put(java.util.Date, java.util.Date) with arguments [java.util.Date, java.lang.String]'
     }
     void testInferDiamondForAssignmentWithDatesAndIllegalValueUsingSquareBracket() {
         shouldFailWithMessages '''
@@ -989,6 +1007,116 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
         '''
     }
 
+    void testCorrectlyBoundedByWildcardGenericParameterType() {
+        assertScript '''
+            class Foo {
+                static <T extends List<?>> void bar(T a) {}
+            }
+            Foo.bar(['abc'])
+        '''
+    }
+
+    void testCorrectlyBoundedByExtendsGenericParameterType() {
+        assertScript '''
+            class Foo {
+                static <T extends List<? extends CharSequence>> void bar(T a) {}
+            }
+            Foo.bar(['abc'])
+        '''
+    }
+
+    void testCorrectlyBoundedBySuperGenericParameterType() {
+        assertScript '''
+            class Foo {
+                static <T extends List<? super CharSequence>> void bar(T a) {}
+            }
+            Foo.bar([new Object()])
+        '''
+    }
+
+    void testCorrectlyBoundedByExtendsPlaceholderParameterType() {
+        assertScript '''
+            class Foo {
+                static <T extends List<? extends CharSequence>> void bar(T a) {}
+            }
+            class Baz {
+                static <T extends List<? extends String>> void qux(T a) {
+                    Foo.bar(a)
+                }
+            }
+            Baz.qux(['abc'])
+        '''
+    }
+
+    void testCorrectlyBoundedBySuperPlaceholderParameterType() {
+        assertScript '''
+            class Foo {
+                static <T extends List<? super CharSequence>> void bar(T a) {}
+            }
+            class Baz {
+                static <T extends List<? super Object>> void qux(T a) {
+                    Foo.bar(a)
+                }
+            }
+            Baz.qux([new Object()])
+        '''
+    }
+
+    void testCorrectlyBoundedSubtypeGenericParameterType() {
+        assertScript '''
+            class Foo {
+                static <T extends Collection<? extends CharSequence>> void bar(T a) {}
+            }
+            Foo.bar(['abc'])
+        '''
+    }
+
+    void testOutOfBoundsByExtendsGenericParameterType() {
+        shouldFailWithMessages '''
+            class Foo {
+                static <T extends List<? extends CharSequence>> void bar(T a) {}
+            }
+            Foo.bar([new Object()])
+        ''', 'Cannot call <T extends java.util.List<? extends java.lang.CharSequence>> Foo#bar(T) with arguments [java.util.List <java.lang.Object>]'
+    }
+
+    void testOutOfBoundsBySuperGenericParameterType() {
+        shouldFailWithMessages '''
+            class Foo {
+                static <T extends List<? super CharSequence>> void bar(T a) {}
+            }
+            Foo.bar(['abc'])
+        ''', 'Cannot call <T extends java.util.List<? super java.lang.CharSequence>> Foo#bar(T) with arguments [java.util.List <java.lang.String>]'
+    }
+
+    void testOutOfBoundsByExtendsPlaceholderParameterType() {
+        shouldFailWithMessages '''
+            class Foo {
+                static <T extends List<? extends CharSequence>> void bar(T a) {}
+            }
+            class Baz {
+                static <T extends List<Object>> void qux(T a) {
+                    Foo.bar(a)
+                }
+            }
+            Baz.qux([new Object()])
+        ''', 'Cannot call <T extends java.util.List<? extends java.lang.CharSequence>> Foo#bar(T) with arguments [java.util.List <Object>]'
+    }
+
+    void testOutOfBoundsBySuperPlaceholderParameterType() {
+        shouldFailWithMessages '''
+            class Foo {
+                static <T extends List<? super CharSequence>> void bar(T a) {}
+            }
+            class Baz {
+                static <T extends List<String>> void qux(T a) {
+                    Foo.bar(a)
+                }
+            }
+            Baz.qux(['abc'])
+        ''', 'Cannot call <T extends java.util.List<? super java.lang.CharSequence>> Foo#bar(T) with arguments [java.util.List <String>] '
+    }
+
     // GROOVY-5721
     void testExtractComponentTypeFromSubclass() {
         assertScript '''
@@ -1186,7 +1314,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
                 Foo<Map> f = new Foo<Map>("a",1)
             }
             bar()
-        ''', '[Static type checking] - Cannot call Foo <Map>#<init>(java.util.Map, java.util.Map) with arguments [java.lang.String, int]'
+        ''', '[Static type checking] - Cannot find matching method Foo#<init>(java.lang.String, int)'
     }
     
     // Groovy-5742
@@ -1198,7 +1326,7 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
             class Done extends Base<Done> { }
             class Next<H, T extends Base<T>> extends Base<Next<H, T>> {
                 H head; T tail
-                static Next<H, T> next(H h, T t) { new Next<H, T>(head:h, tail:t) }
+                static <H, T extends Base<T>> Next<H, T> next(H h, T t) { new Next<H, T>(head:h, tail:t) }
                 String toString() { "Next($head, ${tail.toString()})" }
             }
 
@@ -1432,11 +1560,16 @@ class GenericsSTCTest extends StaticTypeCheckingTestCase {
     // GROOVY-6135
     void testGenericField() {
         assertScript '''
-            import javax.xml.ws.Holder
-
-            Holder<Integer> holder = new Holder<Integer>()
-            holder.value = 5
-            assert holder.value > 4
+            class MyClass {
+                static void main(args) {
+                    Holder<Integer> holder = new Holder<Integer>()
+                    holder.value = 5
+                    assert holder.value > 4
+                }
+                private static class Holder<T> {
+                    T value
+                }
+            }
         '''
     }
 
@@ -1642,6 +1775,53 @@ assert result == 'ok'
             }
             Wrapper w = new Wrapper()
             assert new Foo<Wrapper>().doIt([w]) == w
+        '''
+    }
+
+    void testReturnTypeChecking() {
+        shouldFailWithMessages '''
+            class Foo {
+                List<String> run() {
+                    [11, 12]
+                }
+            }
+        ''', 'Incompatible generic argument types. Cannot assign java.util.List <java.lang.Integer> to: java.util.List <String>'
+    }
+
+    void testBoundedReturnTypeChecking() {
+        assertScript '''
+            class Foo {
+                List<? extends Serializable> run() {
+                    [1, 'a']
+                }
+            }
+            null
+        '''
+    }
+
+
+    //GROOVY-7804
+    void testParameterlessClosureToGenericSAMTypeArgumentCoercion() {
+        assertScript '''
+            interface Supplier<T> {
+                public <T> T get()
+            }
+
+            static <T> T doGet(Supplier<T> supplier) { supplier.get() }
+
+            assert doGet { -> 'foo' } == 'foo'
+        '''
+    }
+
+    //GROOVY-7713
+    void testClosureReturnNull() {
+        assertScript '''
+            Closure<String> cl = {
+                if (hashCode() > 0) {
+                    return null
+                }
+                'foo'
+            }
         '''
     }
 

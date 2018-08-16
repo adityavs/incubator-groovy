@@ -568,7 +568,7 @@ class FooWorker {
     }
 }
 
-new FooWorker().doSomething()''', 'Incompatible generic argument types. Cannot assign java.util.ArrayList <Integer> to: java.util.List <String>'
+new FooWorker().doSomething()''', 'Cannot assign value of type java.util.ArrayList <Integer> to variable of type java.util.List <String>'
     }
 
     void testAICAsStaticProperty() {
@@ -728,6 +728,88 @@ import org.codehaus.groovy.ast.stmt.AssertStatement
             def i="d"
             i=1
             i.MAX_VALUE
+        '''
+    }
+
+    void testImplicitPropertyOfDelegateShouldNotPreferField() {
+        assertScript '''
+            Calendar.instance.with {
+                Date d1 = time
+            }
+        '''
+    }
+
+    void testPropertyStyleSetterArgShouldBeCheckedAgainstParamType() {
+        shouldFailWithMessages '''
+            class Foo {
+                Bar bar;
+
+                void setBar(int x) {
+                    this.bar = new Bar(x: x)
+                }
+            }
+
+            class Bar {
+                int x
+            }
+
+            Foo foo = new Foo()
+            foo.bar = new Bar()
+        ''', 'Cannot assign value of type Bar to variable of type int'
+
+        assertScript '''
+            class Foo {
+                Bar bar;
+
+                void setBar(int x) {
+                    this.bar = new Bar(x: x)
+                }
+            }
+
+            class Bar {
+                int x
+            }
+
+            Foo foo = new Foo()
+            foo.bar = 1
+            assert foo.bar.x == 1
+        '''
+    }
+
+    void testPropertyStyleGetterUsageShouldBeCheckedAgainstReturnType() {
+        shouldFailWithMessages '''
+            class Foo {
+                Bar bar;
+
+                int getBar() {
+                    bar.x
+                }
+            }
+
+            class Bar {
+                int x
+            }
+
+            Foo foo = new Foo(bar: new Bar(x: 1))
+            Bar bar = foo.bar
+        ''', 'Cannot assign value of type int to variable of type Bar'
+
+        assertScript '''
+            class Foo {
+                Bar bar;
+
+                int getBar() {
+                    bar.x
+                }
+            }
+
+            class Bar {
+                int x
+            }
+
+            Foo foo = new Foo(bar: new Bar(x: 1))
+            int x = foo.bar
+            assert x == 1
         '''
     }
 

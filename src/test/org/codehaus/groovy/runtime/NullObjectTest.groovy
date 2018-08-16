@@ -76,9 +76,17 @@ class NullObjectTest extends GroovyTestCase {
     }
 
     void testNullPlusNull() {
-        shouldFail(NullPointerException) {
+        String message = shouldFail(NullPointerException) {
             null+null
         }
+        assert message == "Cannot execute null+null"
+    }
+
+    void testNullPlusNumer() {
+      String message = shouldFail(NullPointerException) {
+          null+1
+      }
+      assert message == "Cannot execute null+1"
     }
 
     void testNullWith() {
@@ -92,11 +100,27 @@ class NullObjectTest extends GroovyTestCase {
         }
         assert a == 2
     }
+
+    void testEqualsInCategory() {
+        def val = null
+        use (MyCategory) {
+            assert val.isNull()
+            assert val.isNull2()
+        }
+    }
 }
 
 class MyCategory {
     public static String toString(NullObject obj) {
         return ""
+    }
+
+    static boolean isNull(value) {
+        value == null
+    }
+
+    static boolean isNull2(value) {
+        null == value
     }
 }
 

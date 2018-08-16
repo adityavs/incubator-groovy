@@ -1,14 +1,27 @@
 //////////////////////////////////////////
 
-  This documentation is licensed under a
-  Creative Commons Attribution-ShareAlike 3.0 Unported License.
-  https://creativecommons.org/licenses/by-sa/3.0/deed.en
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 //////////////////////////////////////////
 
 = Traits
 
-Traits are a a structural construct of the language which allow:
+Traits are a structural construct of the language which allows:
 
 * composition of behaviors
 * runtime implementation of interfaces
@@ -87,6 +100,18 @@ include::{projectdir}/src/spec/test/TraitsSpecificationTest.groovy[tags=private_
 WARNING: Traits only support `public` and `private` methods. Neither `protected` nor `package private` scopes are
 supported.
 
+=== Final methods
+
+If we have a class implementing a trait, conceptually implementations from the trait methods
+are "inherited" into the class. But, in reality, there is no base class containing such
+implementations. Rather, they are woven directly into the class. A final modifier on a method
+just indicates what the modifier will be for the woven method. While it would likely be
+considered bad style to inherit and override or multiply inherit methods with the same
+signature but a mix of final and non-final variants, Groovy doesn't prohibit this scenario.
+Normal method selection applies and the modifier used will be determined from the resulting method.
+You might consider creating a base class which implements the desired trait(s) if you
+want trait implementation methods that can't be overridden.
+
 == The meaning of this
 
 `this` represents the implementing instance. Think of a trait as a superclass. This means that when you write:
@@ -121,7 +146,7 @@ include::{projectdir}/src/spec/test/TraitsSpecificationTest.groovy[tags=trait_im
 <1> declaration of a normal interface
 <2> add `Named` to the list of implemented interfaces
 <3> declare a class that implements the `Greetable` trait
-<4> implement the missing `greet` method
+<4> implement the missing `name` method
 <5> the `greeting` implementation comes from the trait
 <6> make sure `Person` implements the `Named` interface
 <7> make sure `Person` implements the `Greetable` trait
@@ -186,8 +211,7 @@ WARNING: While traits support public fields, it is not recommended to use them a
 
 == Composition of behaviors
 
-Traits can be used to implement multiple inheritance in a controlled way, avoiding the diamond issue. For example, we
-can have the following traits:
+Traits can be used to implement multiple inheritance in a controlled way. For example, we can have the following traits:
 
 [source,groovy]
 ----
@@ -297,8 +321,8 @@ include::{projectdir}/src/spec/test/TraitsSpecificationTest.groovy[tags=multiple
 <2> trait `B` defines the very same method
 <3> class `C` implements both traits
 
-In this case, the default behavior is that methods from the *last declared trait* wins. Here, `B` is declared after `A`
-so the method from `B` will be picked up:
+In this case, the default behavior is that the method from the *last declared trait* in the `implements` clause wins.
+Here, `B` is declared after `A` so the method from `B` will be picked up:
 
 [source,groovy]
 ----
@@ -308,7 +332,7 @@ include::{projectdir}/src/spec/test/TraitsSpecificationTest.groovy[tags=multiple
 === User conflict resolution
 
 In case this behavior is not the one you want, you can explicitly choose which method to call using the `Trait.super.foo` syntax.
-In the example above, we can force to choose the method from trait A, by writing this:
+In the example above, we can ensure the method from trait A is invoked by writing this:
 
 [source,groovy]
 ----
@@ -550,7 +574,7 @@ include::{projectdir}/src/spec/test/TraitsSpecificationTest.groovy[tags=sam_trai
 In Java 8, interfaces can have default implementations of methods. If a class implements an interface and does not provide
 an implementation for a default method, then the implementation from the interface is chosen. Traits behave the same but
 with a major difference: the implementation from the trait is *always* used if the class declares the trait in its interface
-list *and* that it doesn't provide an implementation.
+list *and* that it doesn't provide an implementation *even* if a super class does.
 
 This feature can be used to compose behaviors in an very precise way, in case you want to override the behavior of an
 already implemented method.
@@ -627,7 +651,7 @@ runtime mixins, not the @Mixin annotation which is deprecated in favour of trait
 
 First of all, methods defined in a trait are visible in bytecode:
 
-* internally, the trait is represented as an interface (without default methods) and several helper classes
+* internally, the trait is represented as an interface (without default or static methods) and several helper classes
 * this means that an object implementing a trait effectively implements an _interface_
 * those methods are visible from Java
 * they are compatible with type checking and static compilation
@@ -657,9 +681,17 @@ information below is valid for {groovyVersion} only.
 
 It is possible to define static methods in a trait, but it comes with numerous limitations:
 
-* traits with static methods cannot be compiled statically or type checked. All static methods/properties/field are accessed dynamically (it's a limitation from the JVM).
-* the trait is interpreted as a _template_ for the implementing class, which means that each implementing class will get its own static methods/properties/methods. So a
-static member declared on a trait doesn't belong to the `Trait`, but to it's implementing class.
+* Traits with static methods cannot be compiled statically or type checked. All static methods,
+properties and field are accessed dynamically (it's a limitation from the JVM).
+* Static methods do not appear within the generated interfaces for each trait.
+* The trait is interpreted as a _template_ for the implementing class, which means that each
+implementing class will get its own static methods, properties and fields. So a static member
+declared on a trait doesn't belong to the `Trait`, but to it's implementing class.
+* You should typically not mix static and instance methods of the same signature. The normal
+rules for applying traits apply (including multiple inheritance conflict resolution). If the
+method chosen is static but some implemented trait has an instance variant, a compilation error
+will occur. If the method chosen is the instance variant, the static variant will be ignored
+(the behavior is similar to static methods in Java interfaces for this case).
 
 Let's start with a simple example:
 
@@ -754,7 +786,7 @@ include::{projectdir}/src/spec/test/TraitsSpecificationTest.groovy[tags=selftype
 <5> The method from the trait is called, and `id` is resolved
 
 It is clear, here, that the `Communicating` trait can only apply to `Device`. However, there's no explicit
-contract to tell that, because traits cannot extend classes. However, the code compiles and runs perfectly
+contract to indicate that, because traits cannot extend classes. However, the code compiles and runs perfectly
 fine, because `id` in the trait method will be resolved dynamically. The problem is that there is nothing that
 prevents the trait from being applied to any class which is *not* a `Device`. Any class which has an `id` would
 work, while any class that does not have an `id` property would cause a runtime error.
@@ -771,9 +803,10 @@ requires `this` as a parameter, and actually requires it to be a `Device`?
 include::{projectdir}/src/spec/test/TraitsSpecificationTest.groovy[tags=selftype_securityservice,indent=0]
 ----
 
-If you want to be able to call this in the trait, then you will explicitly need to cast `this` into a `Device`. This can
-quickly become unreadable with explicit casts to this everywhere.
+If you want to be able to call `this` in the trait, then you will explicitly need to cast `this` into a `Device`. This can
+quickly become unreadable with explicit casts to `this` everywhere.
 
+[[traits-selftype]]
 === The @SelfType annotation
 
 In order to make this contract explicit, and to make the type checker aware of the _type of itself_, Groovy provides
